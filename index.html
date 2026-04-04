@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KRACH Hockey Ratings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f4f4f5;
+      color: #111;
+      min-height: 100vh;
+    }
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+    header span { font-size: 13px; color: #aaa; margin-left: auto; }
+    .save-indicator {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #2a6a3a;
+      color: #7ef0a0;
+      margin-left: auto;
+      display: none;
+    }
+    .save-indicator.visible { display: inline-block; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e4e4e7;
+      padding: 1.25rem 1.5rem;
+    }
+    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; color: #333; }
+    label { font-size: 12px; color: #666; display: block; margin-bottom: 3px; margin-top: 10px; }
+    input[type=text], select {
+      width: 100%;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #d4d4d8;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      color: #111;
+      outline: none;
+    }
+    input[type=text]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    .btn {
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid #d4d4d8;
+      border-radius: 8px;
+      background: #fff;
+      color: #111;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #f4f4f5; }
+    .btn.primary { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+    .btn.primary:hover { background: #2d2d4e; }
+    .btn.danger { color: #dc2626; border-color: #fca5a5; }
+    .btn.danger:hover { background: #fef2f2; }
+    .btn.sm { height: 28px; padding: 0 10px; font-size: 13px; }
+    .row { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+    .row input, .row select { flex: 1; }
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f4f4f5;
+      font-size: 14px;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item span { flex: 1; }
+    .empty { font-size: 13px; color: #aaa; padding: 8px 0; }
+    .error { font-size: 12px; color: #dc2626; margin-top: 4px; }
+    .calc-bar { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .results-card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; overflow: hidden; }
+    .tabs { display: flex; border-bottom: 1px solid #e4e4e7; }
+    .tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active { color: #1a1a2e; border-bottom-color: #1a1a2e; font-weight: 500; }
+    .tab-body { padding: 1.5rem; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .krach-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .krach-table th { text-align: left; padding: 8px 12px; border-bottom: 1px solid #e4e4e7; font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .krach-table td { padding: 10px 12px; border-bottom: 1px solid #f4f4f5; }
+    .krach-table tr:last-child td { border-bottom: none; }
+    .rank { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: #f4f4f5; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .rank.gold { background: #fef3c7; color: #92400e; }
+    .rank.silver { background: #f1f5f9; color: #475569; }
+    .rank.bronze { background: #fff7ed; color: #9a3412; }
+    .bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .bar { height: 8px; background: #6366f1; border-radius: 4px; min-width: 2px; }
+    .matrix-wrap { overflow-x: auto; }
+    .matrix-table { border-collapse: collapse; font-size: 13px; }
+    .matrix-table th, .matrix-table td { border: 1px solid #e4e4e7; padding: 7px 12px; text-align: center; white-space: nowrap; }
+    .matrix-table th { background: #f9f9fb; font-weight: 600; font-size: 12px; }
+    .matrix-table td.self { background: #f4f4f5; color: #aaa; }
+    .cell-high { background: rgba(34,197,94,0.12); color: #166534; }
+    .cell-low { background: rgba(239,68,68,0.08); color: #991b1b; }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+    .metric { background: #f9f9fb; border-radius: 10px; padding: 1rem 1.25rem; }
+    .metric .lbl { font-size: 12px; color: #666; margin-bottom: 4px; }
+    .metric .val { font-size: 22px; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge-reg { background: #e0e7ff; color: #3730a3; }
+    .badge-ot { background: #fef3c7; color: #92400e; }
+    .badge-tie { background: #f3f4f6; color: #374151; }
+    .game-type { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+    @media (max-width: 480px) { .metrics { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+  <h1>KRACH Hockey Ratings</h1>
+  <div class="save-indicator" id="save-indicator">✓ Saved</div>
+</header>
+
+<div class="container">
+
+  <div class="grid">
+    <!-- Teams -->
+    <div class="card">
+      <h2>Teams</h2>
+      <div id="teams-list"><p class="empty">No teams added yet.</p></div>
+      <div class="row" style="margin-top:12px;">
+        <input type="text" id="new-team" placeholder="Team name" />
+        <button class="btn" onclick="addTeam()">+ Add</button>
+      </div>
+      <div class="error" id="team-error"></div>
+    </div>
+
+    <!-- Log Game -->
+    <div class="card">
+      <h2>Log a game result</h2>
+      <label>Winner</label>
+      <select id="winner-sel"></select>
+      <label>Loser</label>
+      <select id="loser-sel"></select>
+      <label>Result type</label>
+      <select id="result-type">
+        <option value="W">Win (regulation)</option>
+        <option value="OTW">Win (OT / shootout)</option>
+        <option value="T">Tie</option>
+      </select>
+      <div style="margin-top:10px;">
+        <button class="btn primary" onclick="addGame()">+ Log game</button>
+      </div>
+      <div class="error" id="game-error"></div>
+    </div>
+  </div>
+
+  <!-- Games Log -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2>Game log <span id="game-count" style="font-weight:400;color:#888;font-size:13px;"></span></h2>
+    <div id="games-list"><p class="empty">No games logged yet.</p></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="calc-bar">
+    <button class="btn primary" onclick="calculate()">Calculate KRACH ratings</button>
+    <button class="btn" onclick="clearAll()">Clear all data</button>
+  </div>
+
+  <!-- Results -->
+  <div class="results-card" id="results" style="display:none;">
+    <div class="tab-body">
+      <div class="metrics" id="metrics"></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('rankings', this)">Rankings</button>
+      <button class="tab" onclick="showTab('matrix', this)">Expected win % matrix</button>
+    </div>
+    <div class="tab-body">
+      <div class="tab-panel active" id="tab-rankings"></div>
+      <div class="tab-panel" id="tab-matrix"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000/api';
+  let teams = [], games = [];
+
+  async function api(method, path, body) {
+    const res = await fetch(API + path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return res.json();
+  }
+
+  async function loadData() {
+    const data = await api('GET', '/data');
+    teams = data.teams || [];
+    games = data.games || [];
+    render();
+  }
+
+  function flashSaved() {
+    const el = document.getElementById('save-indicator');
+    el.classList.add('visible');
+    setTimeout(() => el.classList.remove('visible'), 2000);
+  }
+
+  async function addTeam() {
+    const inp = document.getElementById('new-team');
+    const name = inp.value.trim();
+    document.getElementById('team-error').textContent = '';
+    if (!name) return;
+    const res = await api('POST', '/teams', { name });
+    if (res.error) { document.getElementById('team-error').textContent = res.error; return; }
+    teams = res.teams;
+    inp.value = '';
+    render();
+    flashSaved();
+  }
+
+  document.getElementById('new-team').addEventListener('keydown', e => { if (e.key === 'Enter') addTeam(); });
+
+  async function removeTeam(name) {
+    await api('DELETE', '/teams', { name });
+    await loadData();
+    flashSaved();
+  }
+
+  async function addGame() {
+    const winner = document.getElementById('winner-sel').value;
+    const loser = document.getElementById('loser-sel').value;
+    const type = document.getElementById('result-type').value;
+    document.getElementById('game-error').textContent = '';
+    if (!winner || !loser) { document.getElementById('game-error').textContent = 'Select two teams.'; return; }
+    if (winner === loser) { document.getElementById('game-error').textContent = 'Teams must be different.'; return; }
+    const res = await api('POST', '/games', { winner, loser, type });
+    if (res.error) { document.getElementById('game-error').textContent = res.error; return; }
+    games = res.games;
+    render();
+    flashSaved();
+  }
+
+  async function removeGame(id) {
+    await api('DELETE', '/games', { id: id });
+    await loadData();
+    flashSaved();
+  }
+
+  async function clearAll() {
+    if (!confirm('Clear all teams and games? This cannot be undone.')) return;
+    for (let i = games.length - 1; i >= 0; i--) await api('DELETE', '/games', { index: i });
+    for (const t of [...teams]) await api('DELETE', '/teams', { name: t });
+    await loadData();
+    document.getElementById('results').style.display = 'none';
+    flashSaved();
+  }
+
+  function typeLabel(t) { return t === 'W' ? 'Reg' : t === 'OTW' ? 'OT/SO' : 'Tie'; }
+  function typeBadge(t) {
+    const cls = t === 'W' ? 'badge-reg' : t === 'OTW' ? 'badge-ot' : 'badge-tie';
+    return `<span class="game-type ${cls}">${typeLabel(t)}</span>`;
+  }
+
+  function render() {
+    // Teams
+    const tEl = document.getElementById('teams-list');
+    tEl.innerHTML = teams.length === 0
+      ? '<p class="empty">No teams added yet.</p>'
+      : teams.map(t => `<div class="list-item"><span>${t}</span><button class="btn sm danger" onclick="removeTeam('${t.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
+
+    // Selects
+    ['winner-sel','loser-sel'].forEach((id, i) => {
+      const sel = document.getElementById(id);
+      const cur = sel.value;
+      sel.innerHTML = teams.map(t => `<option>${t}</option>`).join('');
+      if (teams.includes(cur)) sel.value = cur;
+      else if (i === 1 && teams.length > 1) sel.selectedIndex = 1;
+    });
+
+    // Games
+    const gEl = document.getElementById('games-list');
+    document.getElementById('game-count').textContent = games.length ? `(${games.length})` : '';
+    gEl.innerHTML = games.length === 0
+      ? '<p class="empty">No games logged yet.</p>'
+      : games.map((g) => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g.type)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
+  }
+
+  function calculate() {
+    if (teams.length < 2) { alert('Add at least 2 teams first.'); return; }
+    if (games.length === 0) { alert('Log at least one game first.'); return; }
+
+    const stats = {};
+    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0 }; });
+    games.forEach(g => {
+      stats[g.winner].gp++; stats[g.loser].gp++;
+      if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
+      else { stats[g.winner].wins++; stats[g.loser].losses++; }
+    });
+
+    const krach = computeKRACH(teams, games);
+    const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
+    const maxK = Math.max(...Object.values(krach));
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
+      <div class="metric"><div class="lbl">Games played</div><div class="val">${games.length}</div></div>
+      <div class="metric"><div class="lbl">Top rated</div><div class="val" style="font-size:16px;">${sorted[0]}</div></div>
+    `;
+
+    const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    document.getElementById('tab-rankings').innerHTML = `
+      <table class="krach-table">
+        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Relative strength</th></tr></thead>
+        <tbody>${sorted.map((t,i) => {
+          const s = stats[t]; const norm = (krach[t]/maxK*120).toFixed(0);
+          return `<tr><td><span class="rank ${rankClass(i)}">${i+1}</span></td><td>${t}</td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td><td>${krach[t].toFixed(2)}</td><td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    `;
+
+    document.getElementById('tab-matrix').innerHTML = `
+      <p style="font-size:13px;color:#666;margin-bottom:1rem;">Each cell shows the expected win probability (%) for the <strong>row team</strong> against the <strong>column team</strong>. Formula: r<sub>A</sub> / (r<sub>A</sub> + r<sub>B</sub>)</p>
+      <div class="matrix-wrap">${buildMatrix(sorted, krach)}</div>
+    `;
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function buildMatrix(sorted, krach) {
+    let h = '<table class="matrix-table"><thead><tr><th></th>';
+    sorted.forEach(t => h += `<th>${t}</th>`);
+    h += '</tr></thead><tbody>';
+    sorted.forEach(row => {
+      h += `<tr><th>${row}</th>`;
+      sorted.forEach(col => {
+        if (row === col) { h += '<td class="self">—</td>'; return; }
+        const pct = krach[row] / (krach[row] + krach[col]) * 100;
+        const cls = pct >= 60 ? 'cell-high' : pct < 40 ? 'cell-low' : '';
+        h += `<td class="${cls}">${pct.toFixed(1)}%</td>`;
+      });
+      h += '</tr>';
+    });
+    return h + '</tbody></table>';
+  }
+
+  function computeKRACH(teams, games) {
+    const n = teams.length;
+    const idx = {}; teams.forEach((t,i) => idx[t]=i);
+    const wins = Array(n).fill(0), opponents = Array.from({length:n},()=>({}));
+    games.forEach(g => {
+      if (!(g.winner in idx) || !(g.loser in idx)) return;
+      const wi = idx[g.winner], li = idx[g.loser];
+      if (g.type === 'T') { wins[wi] += 0.5; wins[li] += 0.5; }
+      else { wins[wi]++; }
+      opponents[wi][li] = (opponents[wi][li]||0)+1;
+      opponents[li][wi] = (opponents[li][wi]||0)+1;
+    });
+    let r = Array(n).fill(1.0);
+    for (let iter=0;iter<2000;iter++) {
+      const nr = Array(n).fill(0);
+      for (let i=0;i<n;i++) {
+        let d=0;
+        for (const [j,c] of Object.entries(opponents[i])) d += c/(r[i]+r[+j]);
+        nr[i] = d===0 ? 1.0 : wins[i]/d;
+      }
+      const norm = nr.reduce((a,b)=>a+b,0)/n;
+      r = nr.map(v=>v/(norm||1));
+    }
+    const res={};
+    teams.forEach((t,i) => res[t]=Math.max(r[i],0.001));
+    return res;
+  }
+
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  loadData();
+</script>
+</body>
+</html>
