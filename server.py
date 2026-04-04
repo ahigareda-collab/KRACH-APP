@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-KRACH Hockey Ratings - Render Web Server with PostgreSQL
+KRACH Hockey Ratings - Render Web Server with PostgreSQL + Divisions
 """
 
 import json
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -21,14 +21,23 @@ def init_db():
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS teams (
+                CREATE TABLE IF NOT EXISTS divisions (
                     id SERIAL PRIMARY KEY,
                     name TEXT UNIQUE NOT NULL
                 );
             """)
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS teams (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
+                    UNIQUE(name, division_id)
+                );
+            """)
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS games (
                     id SERIAL PRIMARY KEY,
+                    division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
                     winner TEXT NOT NULL,
                     loser TEXT NOT NULL,
                     type TEXT NOT NULL DEFAULT 'W',
@@ -39,13 +48,26 @@ def init_db():
         conn.commit()
 
 
-def load_data():
+def load_divisions():
     with get_conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT name FROM teams ORDER BY id")
+            cur.execute("SELECT id, name FROM divisions ORDER BY id")
+            return [{"id": row["id"], "name": row["name"]} for row in cur.fetchall()]
+
+
+def load_division_data(division_id):
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT name FROM teams WHERE division_id = %s ORDER BY id", (division_id,))
             teams = [row["name"] for row in cur.fetchall()]
-            cur.execute("SELECT id, winner, loser, type, playoff, round FROM games ORDER BY id")
-            games = [{"id": row["id"], "winner": row["winner"], "loser": row["loser"], "type": row["type"], "playoff": row["playoff"], "round": row["round"]} for row in cur.fetchall()]
+            cur.execute("""
+                SELECT id, winner, loser, type, playoff, round
+                FROM games WHERE division_id = %s ORDER BY id
+            """, (division_id,))
+            games = [{
+                "id": row["id"], "winner": row["winner"], "loser": row["loser"],
+                "type": row["type"], "playoff": row["playoff"], "round": row["round"]
+            } for row in cur.fetchall()]
     return {"teams": teams, "games": games}
 
 
@@ -80,79 +102,134 @@ class KRACHHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        params = parse_qs(parsed.query)
+
         if path == "/" or path == "/index.html":
             self.send_file("index.html", "text/html")
+
+        elif path == "/api/divisions":
+            self.send_json(load_divisions())
+
         elif path == "/api/data":
-            self.send_json(load_data())
+            div_id = params.get("division_id", [None])[0]
+            if not div_id:
+                self.send_json({"error": "division_id required"}, 400)
+                return
+            self.send_json(load_division_data(int(div_id)))
+
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_POST(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length)) if length else {}
 
-        if path == "/api/teams":
+        if path == "/api/divisions":
             name = body.get("name", "").strip()
             if not name:
-                self.send_json({"error": "Team name required"}, 400)
+                self.send_json({"error": "Division name required"}, 400)
                 return
             try:
                 with get_conn() as conn:
                     with conn.cursor() as cur:
-                        cur.execute("INSERT INTO teams (name) VALUES (%s)", (name,))
+                        cur.execute("INSERT INTO divisions (name) VALUES (%s) RETURNING id", (name,))
+                        new_id = cur.fetchone()[0]
                     conn.commit()
+                self.send_json({"ok": True, "id": new_id, "name": name})
             except psycopg2.errors.UniqueViolation:
-                self.send_json({"error": "Team already exists"}, 400)
+                self.send_json({"error": "Division already exists"}, 400)
+
+        elif path == "/api/teams":
+            name = body.get("name", "").strip()
+            div_id = body.get("division_id")
+            if not name or not div_id:
+                self.send_json({"error": "Name and division_id required"}, 400)
                 return
-            self.send_json({"ok": True, **load_data()})
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO teams (name, division_id) VALUES (%s, %s)", (name, div_id))
+                    conn.commit()
+                self.send_json({"ok": True, **load_division_data(div_id)})
+            except psycopg2.errors.UniqueViolation:
+                self.send_json({"error": "Team already exists in this division"}, 400)
 
         elif path == "/api/games":
+            div_id = body.get("division_id")
             winner = body.get("winner")
             loser = body.get("loser")
             result_type = body.get("type", "W")
             playoff = bool(body.get("playoff", False))
             round_name = body.get("round", None)
-            if not winner or not loser or winner == loser:
+            if not div_id or not winner or not loser or winner == loser:
                 self.send_json({"error": "Invalid game data"}, 400)
                 return
             with get_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO games (winner, loser, type, playoff, round) VALUES (%s, %s, %s, %s, %s)",
-                        (winner, loser, result_type, playoff, round_name)
+                        "INSERT INTO games (division_id, winner, loser, type, playoff, round) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (div_id, winner, loser, result_type, playoff, round_name)
                     )
                 conn.commit()
-            self.send_json({"ok": True, **load_data()})
+            self.send_json({"ok": True, **load_division_data(div_id)})
 
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_DELETE(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length)) if length else {}
 
-        if path == "/api/teams":
-            name = body.get("name")
+        if path == "/api/divisions":
+            div_id = body.get("id")
+            if not div_id:
+                self.send_json({"error": "id required"}, 400)
+                return
             with get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM games WHERE winner = %s OR loser = %s", (name, name))
-                    cur.execute("DELETE FROM teams WHERE name = %s", (name,))
+                    cur.execute("DELETE FROM divisions WHERE id = %s", (div_id,))
+                conn.commit()
+            self.send_json({"ok": True})
+
+        elif path == "/api/teams":
+            name = body.get("name")
+            div_id = body.get("division_id")
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM games WHERE division_id = %s AND (winner = %s OR loser = %s)", (div_id, name, name))
+                    cur.execute("DELETE FROM teams WHERE name = %s AND division_id = %s", (name, div_id))
                 conn.commit()
             self.send_json({"ok": True})
 
         elif path == "/api/games":
             game_id = body.get("id")
+            div_id = body.get("division_id")
             if game_id is not None:
                 with get_conn() as conn:
                     with conn.cursor() as cur:
                         cur.execute("DELETE FROM games WHERE id = %s", (game_id,))
                     conn.commit()
-            self.send_json({"ok": True})
+            self.send_json({"ok": True, **load_division_data(div_id)})
+
+        elif path == "/api/all":
+            div_id = body.get("division_id")
+            if div_id:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("DELETE FROM games WHERE division_id = %s", (div_id,))
+                        cur.execute("DELETE FROM teams WHERE division_id = %s", (div_id,))
+                    conn.commit()
+                self.send_json({"ok": True})
+            else:
+                self.send_json({"error": "division_id required"}, 400)
 
         else:
             self.send_response(404)

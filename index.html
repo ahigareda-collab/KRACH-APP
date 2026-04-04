@@ -7,16 +7,38 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; color: #111; min-height: 100vh; }
-    header { background: #1a1a2e; color: #fff; padding: 1.25rem 2rem; display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
-    .save-indicator { font-size: 12px; padding: 4px 10px; border-radius: 20px; background: #2a6a3a; color: #7ef0a0; margin-left: auto; display: none; }
+    header { background: #1a1a2e; color: #fff; padding: 1rem 2rem; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 19px; font-weight: 600; }
+    .save-indicator { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #2a6a3a; color: #7ef0a0; margin-left: auto; display: none; }
     .save-indicator.visible { display: inline-block; }
-    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
-    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .app { display: flex; min-height: calc(100vh - 56px); }
+    .sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e4e4e7; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 1rem; border-bottom: 1px solid #e4e4e7; }
+    .sidebar-header h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; }
+    .division-list { flex: 1; overflow-y: auto; }
+    .division-item { display: flex; align-items: center; gap: 6px; padding: 10px 12px; cursor: pointer; font-size: 14px; border-left: 3px solid transparent; }
+    .division-item:hover { background: #f9f9fb; }
+    .division-item.active { background: #eff6ff; border-left-color: #6366f1; font-weight: 500; color: #1a1a2e; }
+    .division-item .div-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .division-item .del-div { opacity: 0; font-size: 16px; color: #dc2626; cursor: pointer; line-height: 1; padding: 0 2px; }
+    .division-item:hover .del-div { opacity: 1; }
+    .sidebar-add { padding: 10px 12px; border-top: 1px solid #e4e4e7; }
+    .sidebar-add input { width: 100%; height: 32px; padding: 0 8px; border: 1px solid #d4d4d8; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 6px; }
+    .sidebar-add input:focus { border-color: #6366f1; }
+    .sidebar-add button { width: 100%; height: 32px; background: #1a1a2e; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .sidebar-add button:hover { background: #2d2d4e; }
+    .main { flex: 1; padding: 1.5rem; overflow-y: auto; min-width: 0; }
+    .no-division { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: #aaa; gap: 8px; }
+    .no-division p { font-size: 15px; }
+    .no-division small { font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .sidebar { width: 160px; min-width: 160px; } }
     .card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; padding: 1.25rem 1.5rem; }
     .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; color: #333; }
-    .card-full { margin-bottom: 1.5rem; }
+    .card-full { margin-bottom: 1.25rem; }
+    .division-title { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; }
+    .division-title h2 { font-size: 20px; font-weight: 600; }
+    .division-badge { font-size: 11px; background: #eff6ff; color: #3730a3; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
     label { font-size: 12px; color: #666; display: block; margin-bottom: 3px; margin-top: 10px; }
     input[type=text], select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 14px; background: #fff; color: #111; outline: none; }
     input[type=text]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
@@ -35,7 +57,8 @@
     .list-item span { flex: 1; }
     .empty { font-size: 13px; color: #aaa; padding: 8px 0; }
     .error { font-size: 12px; color: #dc2626; margin-top: 4px; }
-    .calc-bar { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .section-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #aaa; padding: 8px 0 4px; border-top: 1px solid #f4f4f5; margin-top: 8px; }
+    .calc-bar { display: flex; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
     .results-card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; overflow: hidden; }
     .tabs { display: flex; border-bottom: 1px solid #e4e4e7; flex-wrap: wrap; }
     .tab { padding: 10px 18px; font-size: 14px; cursor: pointer; border: none; background: none; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -71,10 +94,9 @@
     .badge-tie { background: #f3f4f6; color: #374151; }
     .badge-playoff { background: #ede9fe; color: #5b21b6; }
     .badge-playoff-ot { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
-    .section-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #aaa; padding: 8px 0 4px; border-top: 1px solid #f4f4f5; margin-top: 8px; }
     .bracket-wrap { overflow-x: auto; padding-bottom: 1rem; }
     .bracket { display: flex; gap: 0; align-items: flex-start; }
-    .bracket-round { display: flex; flex-direction: column; justify-content: space-around; min-width: 170px; padding: 0 12px; border-left: 1px solid #e4e4e7; }
+    .bracket-round { display: flex; flex-direction: column; min-width: 170px; padding: 0 12px; border-left: 1px solid #e4e4e7; }
     .bracket-round:first-child { border-left: none; padding-left: 0; }
     .bracket-round-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; margin-bottom: 12px; text-align: center; }
     .bracket-matchup { background: #f9f9fb; border: 1px solid #e4e4e7; border-radius: 8px; margin: 6px 0; overflow: hidden; }
@@ -87,109 +109,202 @@
 <body>
 
 <header>
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
   <h1>KRACH Hockey Ratings</h1>
   <div class="save-indicator" id="save-indicator">✓ Saved</div>
 </header>
 
-<div class="container">
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header"><h2>Divisions</h2></div>
+    <div class="division-list" id="division-list">
+      <div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>
+    </div>
+    <div class="sidebar-add">
+      <input type="text" id="new-division" placeholder="Division name" />
+      <button onclick="addDivision()">+ Add division</button>
+      <div class="error" id="div-error" style="margin-top:4px;"></div>
+    </div>
+  </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Teams</h2>
-      <div id="teams-list"><p class="empty">No teams added yet.</p></div>
-      <div class="row" style="margin-top:12px;">
-        <input type="text" id="new-team" placeholder="Team name" />
-        <button class="btn" onclick="addTeam()">+ Add</button>
+  <div class="main">
+    <div class="no-division" id="no-division-msg">
+      <p>No division selected</p>
+      <small>Add a division in the sidebar to get started.</small>
+    </div>
+
+    <div id="division-content" style="display:none;">
+      <div class="division-title">
+        <h2 id="division-heading"></h2>
+        <span class="division-badge">Division</span>
       </div>
-      <div class="error" id="team-error"></div>
-    </div>
 
-    <div class="card">
-      <h2>Log a game result</h2>
-      <label>Game type</label>
-      <select id="game-category" onchange="toggleGameCategory()">
-        <option value="regular">Regular season</option>
-        <option value="playoff">Playoff</option>
-      </select>
-      <div id="playoff-round-row" style="display:none;">
-        <label>Playoff round</label>
-        <select id="playoff-round">
-          <option value="First Round">First Round</option>
-          <option value="Quarterfinals">Quarterfinals</option>
-          <option value="Semifinals">Semifinals</option>
-          <option value="Finals">Finals</option>
-        </select>
+      <div class="grid">
+        <div class="card">
+          <h2>Teams</h2>
+          <div id="teams-list"><p class="empty">No teams added yet.</p></div>
+          <div class="row" style="margin-top:12px;">
+            <input type="text" id="new-team" placeholder="Team name" />
+            <button class="btn" onclick="addTeam()">+ Add</button>
+          </div>
+          <div class="error" id="team-error"></div>
+        </div>
+
+        <div class="card">
+          <h2>Log a game result</h2>
+          <label>Game type</label>
+          <select id="game-category" onchange="toggleGameCategory()">
+            <option value="regular">Regular season</option>
+            <option value="playoff">Playoff</option>
+          </select>
+          <div id="playoff-round-row" style="display:none;">
+            <label>Playoff round</label>
+            <select id="playoff-round">
+              <option value="First Round">First Round</option>
+              <option value="Quarterfinals">Quarterfinals</option>
+              <option value="Semifinals">Semifinals</option>
+              <option value="Finals">Finals</option>
+            </select>
+          </div>
+          <label>Winner</label>
+          <select id="winner-sel"></select>
+          <label>Loser</label>
+          <select id="loser-sel"></select>
+          <label>Result type</label>
+          <select id="result-type">
+            <option value="W">Win (regulation)</option>
+            <option value="OTW">Win (OT / shootout)</option>
+            <option value="T">Tie</option>
+          </select>
+          <div style="margin-top:12px;">
+            <button class="btn primary" id="log-btn" onclick="addGame()">+ Log regular season game</button>
+          </div>
+          <div class="error" id="game-error"></div>
+        </div>
       </div>
-      <label>Winner</label>
-      <select id="winner-sel"></select>
-      <label>Loser</label>
-      <select id="loser-sel"></select>
-      <label>Result type</label>
-      <select id="result-type">
-        <option value="W">Win (regulation)</option>
-        <option value="OTW">Win (OT / shootout)</option>
-        <option value="T">Tie</option>
-      </select>
-      <div style="margin-top:12px;">
-        <button class="btn primary" id="log-btn" onclick="addGame()">+ Log regular season game</button>
+
+      <div class="card card-full">
+        <h2>Game log <span id="game-count" style="font-weight:400;color:#888;font-size:13px;"></span></h2>
+        <div id="games-list"><p class="empty">No games logged yet.</p></div>
       </div>
-      <div class="error" id="game-error"></div>
+
+      <div class="calc-bar">
+        <button class="btn primary" onclick="calculate()">Calculate KRACH ratings</button>
+        <button class="btn danger" onclick="clearDivisionData()">Clear division data</button>
+      </div>
+
+      <div class="results-card" id="results" style="display:none;">
+        <div class="tab-body"><div class="metrics" id="metrics"></div></div>
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('rankings',this)">Rankings</button>
+          <button class="tab" onclick="showTab('matrix',this)">Expected win % matrix</button>
+          <button class="tab" onclick="showTab('bracket',this)">Playoff bracket</button>
+        </div>
+        <div class="tab-body">
+          <div class="tab-panel active" id="tab-rankings"></div>
+          <div class="tab-panel" id="tab-matrix"></div>
+          <div class="tab-panel" id="tab-bracket"></div>
+        </div>
+      </div>
     </div>
   </div>
-
-  <div class="card card-full">
-    <h2>Game log <span id="game-count" style="font-weight:400;color:#888;font-size:13px;"></span></h2>
-    <div id="games-list"><p class="empty">No games logged yet.</p></div>
-  </div>
-
-  <div class="calc-bar">
-    <button class="btn primary" onclick="calculate()">Calculate KRACH ratings</button>
-    <button class="btn" onclick="clearAll()">Clear all data</button>
-  </div>
-
-  <div class="results-card" id="results" style="display:none;">
-    <div class="tab-body">
-      <div class="metrics" id="metrics"></div>
-    </div>
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('rankings', this)">Rankings</button>
-      <button class="tab" onclick="showTab('matrix', this)">Expected win % matrix</button>
-      <button class="tab" onclick="showTab('bracket', this)">Playoff bracket</button>
-    </div>
-    <div class="tab-body">
-      <div class="tab-panel active" id="tab-rankings"></div>
-      <div class="tab-panel" id="tab-matrix"></div>
-      <div class="tab-panel" id="tab-bracket"></div>
-    </div>
-  </div>
-
 </div>
 
 <script>
   const API = window.location.origin + '/api';
-  let teams = [], games = [];
+  let divisions = [], currentDivision = null, teams = [], games = [];
 
-  async function api(method, path, body) {
+  async function apiFetch(method, path, body) {
     const res = await fetch(API + path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
+      method, headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined
     });
     return res.json();
-  }
-
-  async function loadData() {
-    const data = await api('GET', '/data');
-    teams = data.teams || [];
-    games = data.games || [];
-    render();
   }
 
   function flashSaved() {
     const el = document.getElementById('save-indicator');
     el.classList.add('visible');
     setTimeout(() => el.classList.remove('visible'), 2000);
+  }
+
+  async function loadDivisions() {
+    divisions = await apiFetch('GET', '/divisions');
+    renderSidebar();
+  }
+
+  async function addDivision() {
+    const inp = document.getElementById('new-division');
+    const name = inp.value.trim();
+    document.getElementById('div-error').textContent = '';
+    if (!name) return;
+    const res = await apiFetch('POST', '/divisions', { name });
+    if (res.error) { document.getElementById('div-error').textContent = res.error; return; }
+    divisions.push({ id: res.id, name: res.name });
+    inp.value = '';
+    renderSidebar();
+    selectDivision(res.id);
+    flashSaved();
+  }
+
+  document.getElementById('new-division').addEventListener('keydown', e => { if (e.key === 'Enter') addDivision(); });
+
+  async function deleteDivision(id, e) {
+    e.stopPropagation();
+    const div = divisions.find(d => d.id === id);
+    if (!confirm(`Delete "${div.name}" and all its data?`)) return;
+    await apiFetch('DELETE', '/divisions', { id });
+    divisions = divisions.filter(d => d.id !== id);
+    renderSidebar();
+    if (currentDivision === id) { currentDivision = null; showContent(false); }
+    flashSaved();
+  }
+
+  function renderSidebar() {
+    const el = document.getElementById('division-list');
+    if (!divisions.length) { el.innerHTML = '<div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>'; return; }
+    el.innerHTML = divisions.map(d => `
+      <div class="division-item ${d.id===currentDivision?'active':''}" onclick="selectDivision(${d.id})">
+        <span class="div-name">${d.name}</span>
+        <span class="del-div" onclick="deleteDivision(${d.id},event)">×</span>
+      </div>`).join('');
+  }
+
+  async function selectDivision(id) {
+    currentDivision = id;
+    renderSidebar();
+    showContent(true);
+    document.getElementById('division-heading').textContent = divisions.find(d=>d.id===id).name;
+    document.getElementById('results').style.display = 'none';
+    await loadDivisionData();
+  }
+
+  function showContent(show) {
+    document.getElementById('no-division-msg').style.display = show ? 'none' : 'flex';
+    document.getElementById('division-content').style.display = show ? 'block' : 'none';
+  }
+
+  async function loadDivisionData() {
+    const data = await apiFetch('GET', `/data?division_id=${currentDivision}`);
+    teams = data.teams || []; games = data.games || [];
+    render();
+  }
+
+  async function addTeam() {
+    const inp = document.getElementById('new-team');
+    const name = inp.value.trim();
+    document.getElementById('team-error').textContent = '';
+    if (!name || !currentDivision) return;
+    const res = await apiFetch('POST', '/teams', { name, division_id: currentDivision });
+    if (res.error) { document.getElementById('team-error').textContent = res.error; return; }
+    teams = res.teams; inp.value = ''; render(); flashSaved();
+  }
+
+  document.getElementById('new-team').addEventListener('keydown', e => { if (e.key === 'Enter') addTeam(); });
+
+  async function removeTeam(name) {
+    await apiFetch('DELETE', '/teams', { name, division_id: currentDivision });
+    await loadDivisionData(); flashSaved();
   }
 
   function toggleGameCategory() {
@@ -202,27 +317,6 @@
     if (isPlayoff && document.getElementById('result-type').value === 'T') document.getElementById('result-type').value = 'W';
   }
 
-  async function addTeam() {
-    const inp = document.getElementById('new-team');
-    const name = inp.value.trim();
-    document.getElementById('team-error').textContent = '';
-    if (!name) return;
-    const res = await api('POST', '/teams', { name });
-    if (res.error) { document.getElementById('team-error').textContent = res.error; return; }
-    teams = res.teams;
-    inp.value = '';
-    render();
-    flashSaved();
-  }
-
-  document.getElementById('new-team').addEventListener('keydown', e => { if (e.key === 'Enter') addTeam(); });
-
-  async function removeTeam(name) {
-    await api('DELETE', '/teams', { name });
-    await loadData();
-    flashSaved();
-  }
-
   async function addGame() {
     const winner = document.getElementById('winner-sel').value;
     const loser = document.getElementById('loser-sel').value;
@@ -232,215 +326,130 @@
     document.getElementById('game-error').textContent = '';
     if (!winner || !loser) { document.getElementById('game-error').textContent = 'Select two teams.'; return; }
     if (winner === loser) { document.getElementById('game-error').textContent = 'Teams must be different.'; return; }
-    const res = await api('POST', '/games', { winner, loser, type, playoff: isPlayoff, round });
+    const res = await apiFetch('POST', '/games', { winner, loser, type, playoff: isPlayoff, round, division_id: currentDivision });
     if (res.error) { document.getElementById('game-error').textContent = res.error; return; }
-    games = res.games;
-    render();
-    flashSaved();
+    games = res.games; render(); flashSaved();
   }
 
   async function removeGame(id) {
-    await api('DELETE', '/games', { id });
-    await loadData();
-    flashSaved();
+    await apiFetch('DELETE', '/games', { id, division_id: currentDivision });
+    await loadDivisionData(); flashSaved();
   }
 
-  async function clearAll() {
-    if (!confirm('Clear all teams and games? This cannot be undone.')) return;
-    for (const g of [...games]) await api('DELETE', '/games', { id: g.id });
-    for (const t of [...teams]) await api('DELETE', '/teams', { name: t });
-    await loadData();
+  async function clearDivisionData() {
+    const div = divisions.find(d => d.id === currentDivision);
+    if (!confirm(`Clear all teams and games in "${div.name}"? This cannot be undone.`)) return;
+    await apiFetch('DELETE', '/all', { division_id: currentDivision });
+    await loadDivisionData();
     document.getElementById('results').style.display = 'none';
     flashSaved();
   }
 
   function typeBadge(g) {
     if (g.playoff) {
-      const cls = g.type === 'OTW' ? 'badge-playoff-ot' : 'badge-playoff';
-      const label = g.type === 'OTW' ? 'Playoff OT' : 'Playoff';
-      return `<span class="game-type ${cls}">${label}${g.round ? ' · ' + g.round : ''}</span>`;
+      const cls = g.type==='OTW' ? 'badge-playoff-ot' : 'badge-playoff';
+      return `<span class="game-type ${cls}">${g.type==='OTW'?'Playoff OT':'Playoff'}${g.round?' · '+g.round:''}</span>`;
     }
-    const cls = g.type === 'W' ? 'badge-reg' : g.type === 'OTW' ? 'badge-ot' : 'badge-tie';
-    const label = g.type === 'W' ? 'Reg' : g.type === 'OTW' ? 'OT/SO' : 'Tie';
-    return `<span class="game-type ${cls}">${label}</span>`;
+    const cls = g.type==='W'?'badge-reg':g.type==='OTW'?'badge-ot':'badge-tie';
+    return `<span class="game-type ${cls}">${g.type==='W'?'Reg':g.type==='OTW'?'OT/SO':'Tie'}</span>`;
   }
 
   function render() {
-    const tEl = document.getElementById('teams-list');
-    tEl.innerHTML = teams.length === 0
+    document.getElementById('teams-list').innerHTML = !teams.length
       ? '<p class="empty">No teams added yet.</p>'
       : teams.map(t => `<div class="list-item"><span>${t}</span><button class="btn sm danger" onclick="removeTeam('${t.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
 
-    ['winner-sel','loser-sel'].forEach((id, i) => {
-      const sel = document.getElementById(id);
-      const cur = sel.value;
-      sel.innerHTML = teams.map(t => `<option>${t}</option>`).join('');
+    ['winner-sel','loser-sel'].forEach((id,i) => {
+      const sel = document.getElementById(id); const cur = sel.value;
+      sel.innerHTML = teams.map(t=>`<option>${t}</option>`).join('');
       if (teams.includes(cur)) sel.value = cur;
-      else if (i === 1 && teams.length > 1) sel.selectedIndex = 1;
+      else if (i===1 && teams.length>1) sel.selectedIndex=1;
     });
 
-    const regular = games.filter(g => !g.playoff);
-    const playoff = games.filter(g => g.playoff);
+    const regular = games.filter(g=>!g.playoff), playoff = games.filter(g=>g.playoff);
     document.getElementById('game-count').textContent = games.length ? `(${games.length})` : '';
-
     let html = '';
-    if (regular.length) {
-      html += `<div class="section-divider">Regular season (${regular.length})</div>`;
-      html += regular.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
-    }
-    if (playoff.length) {
-      html += `<div class="section-divider">Playoffs (${playoff.length})</div>`;
-      html += playoff.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
-    }
+    if (regular.length) { html += `<div class="section-divider">Regular season (${regular.length})</div>`; html += regular.map(g=>`<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join(''); }
+    if (playoff.length) { html += `<div class="section-divider">Playoffs (${playoff.length})</div>`; html += playoff.map(g=>`<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join(''); }
     document.getElementById('games-list').innerHTML = html || '<p class="empty">No games logged yet.</p>';
   }
 
-  function calculate() {
-    if (teams.length < 2) { alert('Add at least 2 teams first.'); return; }
-    if (games.length === 0) { alert('Log at least one game first.'); return; }
-
-    const stats = {};
-    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 }; });
-    games.forEach(g => {
-      stats[g.winner].gp++; stats[g.loser].gp++;
-      if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
-      else { stats[g.winner].wins++; stats[g.loser].losses++; }
-      if (g.playoff) { stats[g.winner].pwins++; stats[g.loser].plosses++; }
-    });
-
-    const krach = computeKRACH(teams, games);
-    const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
-    const maxK = Math.max(...Object.values(krach));
-    const playoffGames = games.filter(g => g.playoff);
-    const regularGames = games.filter(g => !g.playoff);
-
-    document.getElementById('metrics').innerHTML = `
-      <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-      <div class="metric"><div class="lbl">Regular season</div><div class="val">${regularGames.length}</div></div>
-      <div class="metric"><div class="lbl">Playoff games</div><div class="val">${playoffGames.length}</div></div>
-      <div class="metric"><div class="lbl">Top rated</div><div class="val" style="font-size:15px;">${sorted[0]}</div></div>
-    `;
-
-    const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    document.getElementById('tab-rankings').innerHTML = `
-      <table class="krach-table">
-        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Relative strength</th></tr></thead>
-        <tbody>${sorted.map((t,i) => {
-          const s = stats[t];
-          const norm = (krach[t]/maxK*120).toFixed(0);
-          const po = (s.pwins + s.plosses) > 0 ? `${s.pwins}-${s.plosses}` : '<span style="color:#bbb">—</span>';
-          return `<tr>
-            <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
-            <td>${t}</td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
-            <td>${po}</td>
-            <td>${krach[t].toFixed(2)}</td>
-            <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    `;
-
-    document.getElementById('tab-matrix').innerHTML = `
-      <p style="font-size:13px;color:#666;margin-bottom:1rem;">Expected win probability (%) for the <strong>row team</strong> vs the <strong>column team</strong>, based on KRACH ratings including all games.</p>
-      <div class="matrix-wrap">${buildMatrix(sorted, krach)}</div>
-    `;
-
-    document.getElementById('tab-bracket').innerHTML = buildBracket(playoffGames);
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function buildBracket(playoffGames) {
-    if (playoffGames.length === 0) return '<p style="font-size:14px;color:#aaa;padding:1rem 0;">No playoff games logged yet. Switch to "Playoff" game type and log some games to see the bracket here.</p>';
-
-    const roundOrder = ['First Round', 'Quarterfinals', 'Semifinals', 'Finals'];
-    const gamesByRound = {};
-    playoffGames.forEach(g => {
-      const r = g.round || 'Playoffs';
-      if (!gamesByRound[r]) gamesByRound[r] = [];
-      gamesByRound[r].push(g);
-    });
-
-    const rounds = roundOrder.filter(r => gamesByRound[r]);
-    if (!rounds.length) Object.keys(gamesByRound).forEach(r => rounds.push(r));
-
-    let html = '<div class="bracket-wrap"><div class="bracket">';
-    rounds.forEach(round => {
-      html += `<div class="bracket-round"><div class="bracket-round-label">${round}</div>`;
-      (gamesByRound[round] || []).forEach(g => {
-        html += `<div class="bracket-matchup">
-          <div class="bracket-team winner"><span>${g.winner}</span><span style="font-size:11px;color:#16a34a;">W</span></div>
-          <div class="bracket-team"><span style="text-decoration:line-through;color:#aaa;">${g.loser}</span><span style="font-size:11px;color:#dc2626;">L</span></div>
-        </div>`;
-      });
-      html += '</div>';
-    });
-
-    const champion = playoffGames[playoffGames.length - 1]?.winner;
-    if (champion) {
-      html += `<div class="bracket-round"><div class="bracket-round-label">Champion</div>
-        <div class="bracket-matchup" style="border-color:#fbbf24;background:#fffbeb;">
-          <div class="bracket-trophy">🏆</div>
-          <div class="bracket-team winner" style="background:#fffbeb;justify-content:center;font-size:14px;">${champion}</div>
-        </div>
-      </div>`;
-    }
-    return html + '</div></div>';
-  }
-
-  function buildMatrix(sorted, krach) {
-    let h = '<table class="matrix-table"><thead><tr><th></th>';
-    sorted.forEach(t => h += `<th>${t}</th>`);
-    h += '</tr></thead><tbody>';
-    sorted.forEach(row => {
-      h += `<tr><th>${row}</th>`;
-      sorted.forEach(col => {
-        if (row === col) { h += '<td class="self">—</td>'; return; }
-        const pct = krach[row] / (krach[row] + krach[col]) * 100;
-        const cls = pct >= 60 ? 'cell-high' : pct < 40 ? 'cell-low' : '';
-        h += `<td class="${cls}">${pct.toFixed(1)}%</td>`;
-      });
-      h += '</tr>';
-    });
-    return h + '</tbody></table>';
-  }
+  const PLAYOFF_WEIGHT = 2;
 
   function computeKRACH(teams, games) {
-    const n = teams.length;
-    const idx = {}; teams.forEach((t,i) => idx[t]=i);
-    const wins = Array(n).fill(0), opponents = Array.from({length:n},()=>({}));
+    const n = teams.length, idx = {};
+    teams.forEach((t,i) => idx[t]=i);
+    const wins = Array(n).fill(0), opp = Array.from({length:n},()=>({}));
     games.forEach(g => {
-      if (!(g.winner in idx) || !(g.loser in idx)) return;
-      const wi = idx[g.winner], li = idx[g.loser];
-      if (g.type === 'T') { wins[wi] += 0.5; wins[li] += 0.5; }
-      else { wins[wi]++; }
-      opponents[wi][li] = (opponents[wi][li]||0)+1;
-      opponents[li][wi] = (opponents[li][wi]||0)+1;
+      if (!(g.winner in idx)||!(g.loser in idx)) return;
+      const wi=idx[g.winner], li=idx[g.loser], w=g.playoff?PLAYOFF_WEIGHT:1;
+      if (g.type==='T') { wins[wi]+=0.5*w; wins[li]+=0.5*w; } else { wins[wi]+=w; }
+      opp[wi][li]=(opp[wi][li]||0)+w; opp[li][wi]=(opp[li][wi]||0)+w;
     });
     let r = Array(n).fill(1.0);
     for (let iter=0;iter<2000;iter++) {
-      const nr = Array(n).fill(0);
-      for (let i=0;i<n;i++) {
-        let d=0;
-        for (const [j,c] of Object.entries(opponents[i])) d += c/(r[i]+r[+j]);
-        nr[i] = d===0 ? 1.0 : wins[i]/d;
-      }
-      const norm = nr.reduce((a,b)=>a+b,0)/n;
-      r = nr.map(v=>v/(norm||1));
+      const nr=Array(n).fill(0);
+      for (let i=0;i<n;i++) { let d=0; for (const [j,c] of Object.entries(opp[i])) d+=c/(r[i]+r[+j]); nr[i]=d===0?1.0:wins[i]/d; }
+      const norm=nr.reduce((a,b)=>a+b,0)/n; r=nr.map(v=>v/(norm||1));
     }
-    const res={};
-    teams.forEach((t,i) => res[t]=Math.max(r[i],0.001));
-    return res;
+    const res={}; teams.forEach((t,i)=>res[t]=Math.max(r[i],0.001)); return res;
   }
 
-  function showTab(name, btn) {
+  function calculate() {
+    if (teams.length<2) { alert('Add at least 2 teams first.'); return; }
+    if (!games.length) { alert('Log at least one game first.'); return; }
+    const stats={};
+    teams.forEach(t => { stats[t]={wins:0,losses:0,ties:0,gp:0,pwins:0,plosses:0}; });
+    games.forEach(g => {
+      stats[g.winner].gp++; stats[g.loser].gp++;
+      if (g.type==='T') { stats[g.winner].ties++; stats[g.loser].ties++; } else { stats[g.winner].wins++; stats[g.loser].losses++; }
+      if (g.playoff) { stats[g.winner].pwins++; stats[g.loser].plosses++; }
+    });
+    const krach=computeKRACH(teams,games), sorted=[...teams].sort((a,b)=>krach[b]-krach[a]), maxK=Math.max(...Object.values(krach));
+    const pg=games.filter(g=>g.playoff), rg=games.filter(g=>!g.playoff);
+    document.getElementById('metrics').innerHTML=`
+      <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
+      <div class="metric"><div class="lbl">Regular season</div><div class="val">${rg.length}</div></div>
+      <div class="metric"><div class="lbl">Playoff games</div><div class="val">${pg.length}</div></div>
+      <div class="metric"><div class="lbl">Top rated</div><div class="val" style="font-size:15px;">${sorted[0]}</div></div>`;
+    const rc=i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    document.getElementById('tab-rankings').innerHTML=`
+      <p style="font-size:13px;color:#7c3aed;margin-bottom:1rem;background:#ede9fe;padding:8px 12px;border-radius:8px;">Playoff games count as <strong>2×</strong> in the KRACH calculation.</p>
+      <table class="krach-table"><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Relative strength</th></tr></thead>
+      <tbody>${sorted.map((t,i)=>{ const s=stats[t],norm=(krach[t]/maxK*120).toFixed(0),po=(s.pwins+s.plosses)>0?`${s.pwins}-${s.plosses}`:'<span style="color:#bbb">—</span>';
+        return `<tr><td><span class="rank ${rc(i)}">${i+1}</span></td><td>${t}</td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td><td>${po}</td><td>${krach[t].toFixed(2)}</td><td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td></tr>`;
+      }).join('')}</tbody></table>`;
+    document.getElementById('tab-matrix').innerHTML=`<p style="font-size:13px;color:#666;margin-bottom:1rem;">Expected win probability (%) for the <strong>row team</strong> vs the <strong>column team</strong>.</p><div class="matrix-wrap">${buildMatrix(sorted,krach)}</div>`;
+    document.getElementById('tab-bracket').innerHTML=buildBracket(pg);
+    document.getElementById('results').style.display='block';
+    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function buildMatrix(sorted,krach) {
+    let h='<table class="matrix-table"><thead><tr><th></th>'; sorted.forEach(t=>h+=`<th>${t}</th>`); h+='</tr></thead><tbody>';
+    sorted.forEach(row=>{ h+=`<tr><th>${row}</th>`; sorted.forEach(col=>{ if(row===col){h+='<td class="self">—</td>';return;} const pct=krach[row]/(krach[row]+krach[col])*100,cls=pct>=60?'cell-high':pct<40?'cell-low':''; h+=`<td class="${cls}">${pct.toFixed(1)}%</td>`; }); h+='</tr>'; });
+    return h+'</tbody></table>';
+  }
+
+  function buildBracket(pg) {
+    if (!pg.length) return '<p style="font-size:14px;color:#aaa;padding:1rem 0;">No playoff games logged yet.</p>';
+    const ro=['First Round','Quarterfinals','Semifinals','Finals'], br={};
+    pg.forEach(g=>{const r=g.round||'Playoffs';if(!br[r])br[r]=[];br[r].push(g);});
+    const rounds=ro.filter(r=>br[r]); if(!rounds.length) Object.keys(br).forEach(r=>rounds.push(r));
+    let html='<div class="bracket-wrap"><div class="bracket">';
+    rounds.forEach(round=>{ html+=`<div class="bracket-round"><div class="bracket-round-label">${round}</div>`; (br[round]||[]).forEach(g=>{html+=`<div class="bracket-matchup"><div class="bracket-team winner"><span>${g.winner}</span><span style="font-size:11px;color:#16a34a;">W</span></div><div class="bracket-team"><span style="text-decoration:line-through;color:#aaa;">${g.loser}</span><span style="font-size:11px;color:#dc2626;">L</span></div></div>`;});html+='</div>'; });
+    const champ=pg[pg.length-1]?.winner;
+    if(champ) html+=`<div class="bracket-round"><div class="bracket-round-label">Champion</div><div class="bracket-matchup" style="border-color:#fbbf24;background:#fffbeb;"><div class="bracket-trophy">🏆</div><div class="bracket-team winner" style="background:#fffbeb;justify-content:center;font-size:14px;">${champ}</div></div></div>`;
+    return html+'</div></div>';
+  }
+
+  function showTab(name,btn) {
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('tab-'+name).classList.add('active');
-    btn.classList.add('active');
+    document.getElementById('tab-'+name).classList.add('active'); btn.classList.add('active');
   }
 
-  loadData();
+  loadDivisions();
 </script>
 </body>
 </html>
