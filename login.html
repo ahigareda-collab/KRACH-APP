@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e4e4e7; padding: 2.5rem 2rem; width: 100%; max-width: 380px; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 1.75rem; }
+    .logo h1 { font-size: 18px; font-weight: 600; color: #1a1a2e; }
+    h2 { font-size: 22px; font-weight: 600; margin-bottom: 0.35rem; }
+    .subtitle { font-size: 14px; color: #888; margin-bottom: 1.75rem; }
+    label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; font-weight: 500; }
+    input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 14px; outline: none; margin-bottom: 1rem; color: #111; background: #fff; }
+    input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    button { width: 100%; height: 42px; background: #1a1a2e; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 0.25rem; }
+    button:hover { background: #2d2d4e; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error { font-size: 13px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-bottom: 1rem; display: none; }
+    .standings-link { text-align: center; margin-top: 1.25rem; font-size: 13px; color: #888; }
+    .standings-link a { color: #6366f1; text-decoration: none; font-weight: 500; }
+    .standings-link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+    <h1>KRACH Hockey Ratings</h1>
+  </div>
+  <h2>Admin login</h2>
+  <p class="subtitle">Sign in to manage your league.</p>
+
+  <div class="error" id="error-msg"></div>
+
+  <label for="username">Username</label>
+  <input type="text" id="username" placeholder="Enter username" autocomplete="username" />
+
+  <label for="password">Password</label>
+  <input type="password" id="password" placeholder="Enter password" autocomplete="current-password" />
+
+  <button id="login-btn" onclick="login()">Sign in</button>
+
+  <div class="standings-link">
+    <a href="/standings">View public standings →</a>
+  </div>
+</div>
+
+<script>
+  document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  document.getElementById('username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('password').focus(); });
+
+  async function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const errEl = document.getElementById('error-msg');
+    const btn = document.getElementById('login-btn');
+
+    errEl.style.display = 'none';
+    if (!username || !password) { errEl.textContent = 'Please enter your username and password.'; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.location.href = '/';
+      } else {
+        errEl.textContent = data.error || 'Invalid username or password.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+      }
+    } catch (e) {
+      errEl.textContent = 'Could not connect to server. Try again.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  }
+</script>
+</body>
+</html>

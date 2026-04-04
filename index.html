@@ -137,6 +137,7 @@
     <h1>KRACH Hockey Ratings</h1>
   </div>
   <div class="save-indicator" id="save-indicator">✓ Saved</div>
+  <button onclick="logout()" style="margin-left:8px;height:30px;padding:0 14px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;background:transparent;color:#ccc;font-size:13px;cursor:pointer;">Log out</button>
 </header>
 
 <!-- Top nav -->
@@ -300,6 +301,11 @@
   }
 
   // ── Divisions ──
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'DELETE' });
+    window.location.href = '/login';
+  }
 
   async function loadDivisions() {
     divisions = await apiCall('GET', '/divisions');

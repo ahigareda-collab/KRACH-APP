@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>League Standings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; color: #111; min-height: 100vh; }
+
+    header { background: #1a1a2e; color: #fff; padding: 0 2rem; height: 56px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    .updated { font-size: 12px; color: #aaa; margin-left: auto; }
+
+    /* Division tabs */
+    .div-tabs-wrap { background: #fff; border-bottom: 1px solid #e4e4e7; padding: 0 2rem; overflow-x: auto; white-space: nowrap; }
+    .div-tab { display: inline-block; padding: 0 20px; height: 44px; line-height: 44px; font-size: 14px; font-weight: 500; cursor: pointer; color: #666; border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+    .div-tab:hover { color: #1a1a2e; }
+    .div-tab.active { color: #1a1a2e; border-bottom-color: #6366f1; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .div-panel { display: none; }
+    .div-panel.active { display: block; }
+
+    /* View tabs (rankings / matrix) */
+    .view-tabs { display: flex; border-bottom: 1px solid #e4e4e7; margin-bottom: 0; }
+    .view-tab { padding: 10px 18px; font-size: 14px; cursor: pointer; border: none; background: none; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .view-tab.active { color: #1a1a2e; border-bottom-color: #6366f1; font-weight: 500; }
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; overflow: hidden; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid #e4e4e7; }
+    .card-header h2 { font-size: 16px; font-weight: 600; }
+    .card-body { padding: 0 0 0.5rem; }
+
+    /* Summary metrics */
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+    @media (max-width: 500px) { .metrics { grid-template-columns: 1fr 1fr; } }
+    .metric { background: #fff; border-radius: 10px; border: 1px solid #e4e4e7; padding: 1rem 1.25rem; }
+    .metric .lbl { font-size: 12px; color: #666; margin-bottom: 4px; }
+    .metric .val { font-size: 22px; font-weight: 600; }
+
+    /* Rankings table */
+    .krach-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .krach-table th { text-align: left; padding: 10px 16px; border-bottom: 1px solid #e4e4e7; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: #f9f9fb; }
+    .krach-table td { padding: 11px 16px; border-bottom: 1px solid #f4f4f5; }
+    .krach-table tr:last-child td { border-bottom: none; }
+    .krach-table tr:hover td { background: #fafafa; }
+    .rank { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: #f4f4f5; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .rank.gold { background: #fef3c7; color: #92400e; }
+    .rank.silver { background: #f1f5f9; color: #475569; }
+    .rank.bronze { background: #fff7ed; color: #9a3412; }
+    .bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .bar { height: 8px; background: #6366f1; border-radius: 4px; min-width: 2px; }
+
+    /* Matrix */
+    .matrix-note { font-size: 13px; color: #666; padding: 1rem 1.5rem 0.5rem; }
+    .matrix-scroll { overflow-x: auto; padding: 0 1.5rem 1.5rem; }
+    .matrix-table { border-collapse: collapse; font-size: 13px; }
+    .matrix-table th, .matrix-table td { border: 1px solid #e4e4e7; padding: 7px 14px; text-align: center; white-space: nowrap; }
+    .matrix-table th { background: #f9f9fb; font-weight: 600; font-size: 12px; }
+    .matrix-table td.self { background: #f4f4f5; color: #aaa; }
+    .cell-high { background: rgba(34,197,94,0.12); color: #166534; font-weight: 500; }
+    .cell-low { background: rgba(239,68,68,0.08); color: #991b1b; }
+
+    .info-note { font-size: 12px; color: #7c3aed; background: #ede9fe; padding: 6px 16px; border-radius: 0; display: flex; align-items: center; gap: 6px; }
+
+    .loading { text-align: center; padding: 3rem; color: #aaa; font-size: 14px; }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; }
+    .empty-state p { font-size: 15px; color: #555; font-weight: 500; margin-bottom: 6px; }
+    .empty-state small { font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+  <h1>League Standings</h1>
+  <span class="updated" id="updated-time"></span>
+</header>
+
+<div class="div-tabs-wrap" id="div-tabs">
+  <div class="loading" style="padding:10px 0;">Loading divisions...</div>
+</div>
+
+<div class="container" id="panels">
+  <div class="loading">Loading standings...</div>
+</div>
+
+<script>
+  const API = window.location.origin + '/api';
+  const PLAYOFF_WEIGHT = 2;
+
+  async function load() {
+    const divisions = await fetch(`${API}/divisions`).then(r => r.json());
+
+    if (!divisions.length) {
+      document.getElementById('div-tabs').innerHTML = '';
+      document.getElementById('panels').innerHTML = '<div class="empty-state"><p>No divisions yet</p><small>Check back soon.</small></div>';
+      return;
+    }
+
+    // Fetch all division data in parallel
+    const allData = await Promise.all(
+      divisions.map(d => fetch(`${API}/data?division_id=${d.id}`).then(r => r.json()).then(data => ({ ...d, ...data })))
+    );
+
+    // Build division tabs
+    document.getElementById('div-tabs').innerHTML = allData.map((d, i) =>
+      `<span class="div-tab ${i===0?'active':''}" onclick="showDiv('div-${d.id}', this)">${d.name}</span>`
+    ).join('');
+
+    // Build panels
+    document.getElementById('panels').innerHTML = allData.map((d, i) =>
+      `<div class="div-panel ${i===0?'active':''}" id="div-${d.id}">${buildPanel(d)}</div>`
+    ).join('');
+
+    document.getElementById('updated-time').textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function buildPanel(d) {
+    const { teams, games } = d;
+    if (!teams.length || !games.length) {
+      return `<div class="empty-state"><p>No standings yet</p><small>Games haven't been logged for this division.</small></div>`;
+    }
+
+    const stats = {};
+    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 }; });
+    games.forEach(g => {
+      stats[g.winner].gp++; stats[g.loser].gp++;
+      if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
+      else { stats[g.winner].wins++; stats[g.loser].losses++; }
+      if (g.playoff) { stats[g.winner].pwins++; stats[g.loser].plosses++; }
+    });
+
+    const krach = computeKRACH(teams, games);
+    const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
+    const maxK = Math.max(...Object.values(krach));
+    const playoffGames = games.filter(g => g.playoff);
+    const regularGames = games.filter(g => !g.playoff);
+    const id = d.id;
+
+    const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+
+    const rankingsHTML = `
+      <div class="info-note">Playoff games count as 2× in the KRACH calculation.</div>
+      <div class="card-body">
+        <table class="krach-table">
+          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
+          <tbody>${sorted.map((t,i) => {
+            const s = stats[t];
+            const norm = (krach[t]/maxK*120).toFixed(0);
+            const po = (s.pwins+s.plosses) > 0 ? `${s.pwins}-${s.plosses}` : '<span style="color:#bbb">—</span>';
+            return `<tr>
+              <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
+              <td><strong>${t}</strong></td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
+              <td>${po}</td><td>${krach[t].toFixed(2)}</td>
+              <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    `;
+
+    const matrixHTML = `
+      <div class="matrix-note">Expected win probability (%) for the <strong>row team</strong> against the <strong>column team</strong>.</div>
+      <div class="matrix-scroll">${buildMatrix(sorted, krach)}</div>
+    `;
+
+    return `
+      <div class="metrics">
+        <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
+        <div class="metric"><div class="lbl">Regular season games</div><div class="val">${regularGames.length}</div></div>
+        <div class="metric"><div class="lbl">Playoff games</div><div class="val">${playoffGames.length}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h2>${d.name} Standings</h2>
+        </div>
+        <div class="view-tabs" style="padding:0 1.5rem;">
+          <button class="view-tab active" onclick="showView('rankings-${id}','matrix-${id}',this)">Rankings</button>
+          <button class="view-tab" onclick="showView('matrix-${id}','rankings-${id}',this)">Expected win % matrix</button>
+        </div>
+        <div class="view-panel active" id="rankings-${id}">${rankingsHTML}</div>
+        <div class="view-panel" id="matrix-${id}">${matrixHTML}</div>
+      </div>
+    `;
+  }
+
+  function buildMatrix(sorted, krach) {
+    let h = '<table class="matrix-table" style="margin-top:1rem;"><thead><tr><th></th>';
+    sorted.forEach(t => h += `<th>${t}</th>`);
+    h += '</tr></thead><tbody>';
+    sorted.forEach(row => {
+      h += `<tr><th>${row}</th>`;
+      sorted.forEach(col => {
+        if (row === col) { h += '<td class="self">—</td>'; return; }
+        const pct = krach[row] / (krach[row] + krach[col]) * 100;
+        const cls = pct >= 60 ? 'cell-high' : pct < 40 ? 'cell-low' : '';
+        h += `<td class="${cls}">${pct.toFixed(1)}%</td>`;
+      });
+      h += '</tr>';
+    });
+    return h + '</tbody></table>';
+  }
+
+  function showDiv(id, btn) {
+    document.querySelectorAll('.div-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.div-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function showView(showId, hideId, btn) {
+    document.getElementById(showId).classList.add('active');
+    document.getElementById(hideId).classList.remove('active');
+    const tabs = btn.closest('.view-tabs').querySelectorAll('.view-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function computeKRACH(teams, games) {
+    const n = teams.length;
+    const idx = {}; teams.forEach((t,i) => idx[t]=i);
+    const wins = Array(n).fill(0), opponents = Array.from({length:n},()=>({}));
+    games.forEach(g => {
+      if (!(g.winner in idx) || !(g.loser in idx)) return;
+      const wi = idx[g.winner], li = idx[g.loser];
+      const w = g.playoff ? PLAYOFF_WEIGHT : 1;
+      if (g.type === 'T') { wins[wi] += 0.5*w; wins[li] += 0.5*w; }
+      else { wins[wi] += w; }
+      opponents[wi][li] = (opponents[wi][li]||0)+w;
+      opponents[li][wi] = (opponents[li][wi]||0)+w;
+    });
+    let r = Array(n).fill(1.0);
+    for (let iter=0;iter<2000;iter++) {
+      const nr = Array(n).fill(0);
+      for (let i=0;i<n;i++) {
+        let d=0;
+        for (const [j,c] of Object.entries(opponents[i])) d += c/(r[i]+r[+j]);
+        nr[i] = d===0 ? 1.0 : wins[i]/d;
+      }
+      const norm = nr.reduce((a,b)=>a+b,0)/n;
+      r = nr.map(v=>v/(norm||1));
+    }
+    const res={};
+    teams.forEach((t,i) => res[t]=Math.max(r[i],0.001));
+    return res;
+  }
+
+  load();
+</script>
+</body>
+</html>
