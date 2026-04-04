@@ -405,42 +405,102 @@
     return h + '</tbody></table>';
   }
 
-  function computeKRACH(teams, games) {
-    const n = teams.length;
-    const idx = {}; teams.forEach((t,i) => idx[t]=i);
-    const wins = Array(n).fill(0), opponents = Array.from({length:n},()=>({}));
-    games.forEach(g => {
-      if (!(g.winner in idx) || !(g.loser in idx)) return;
-      const wi = idx[g.winner], li = idx[g.loser];
-      if (g.type === 'T') { wins[wi] += 0.5; wins[li] += 0.5; }
-      else { wins[wi]++; }
-      opponents[wi][li] = (opponents[wi][li]||0)+1;
-      opponents[li][wi] = (opponents[li][wi]||0)+1;
-    });
-    let r = Array(n).fill(1.0);
-    for (let iter=0;iter<2000;iter++) {
-      const nr = Array(n).fill(0);
-      for (let i=0;i<n;i++) {
-        let d=0;
-        for (const [j,c] of Object.entries(opponents[i])) d += c/(r[i]+r[+j]);
-        nr[i] = d===0 ? 1.0 : wins[i]/d;
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>KRACH Hockey Ratings</title>
+  </head>
+<body>
+  <div class="calc-bar">
+    <button class="btn primary" onclick="calculate()">Calculate KRACH ratings</button>
+    <button class="btn" id="export-btn" onclick="exportToCSV()" style="display:none;">Export to CSV</button>
+    <button class="btn" onclick="clearAll()">Clear all data</button>
+  </div>
+
+  <script>
+    // ... [Keep your existing API and Render functions] ...
+
+    function computeKRACH(teams, games) {
+      const n = teams.length;
+      const idx = {}; teams.forEach((t, i) => idx[t] = i);
+      
+      // Added 0.5 prior to handle undefeated/winless teams
+      const wins = Array(n).fill(0.5); 
+      const opponents = Array.from({length: n}, () => ({}));
+
+      games.forEach(g => {
+        if (!(g.winner in idx) || !(g.loser in idx)) return;
+        const wi = idx[g.winner], li = idx[g.loser];
+        if (g.type === 'T') { wins[wi] += 0.5; wins[li] += 0.5; }
+        else { wins[wi]++; }
+        opponents[wi][li] = (opponents[wi][li] || 0) + 1;
+        opponents[li][wi] = (opponents[li][wi] || 0) + 1;
+      });
+
+      let r = Array(n).fill(100.0);
+      for (let iter = 0; iter < 5000; iter++) {
+        const nr = Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+          let d = 0;
+          for (const [j, c] of Object.entries(opponents[i])) d += c / (r[i] + r[+j]);
+          nr[i] = d === 0 ? r[i] : wins[i] / d;
+        }
+        const avg = nr.reduce((a, b) => a + b, 0) / n;
+        r = nr.map(v => v / (avg || 1) * 100);
       }
-      const norm = nr.reduce((a,b)=>a+b,0)/n;
-      r = nr.map(v=>v/(norm||1));
+
+      // SOS Calculation
+      const sos = {};
+      teams.forEach(t => {
+        let totalOppRating = 0, count = 0;
+        games.forEach(g => {
+          if (g.winner === t) { totalOppRating += r[idx[g.loser]]; count++; }
+          else if (g.loser === t) { totalOppRating += r[idx[g.winner]]; count++; }
+        });
+        sos[t] = count > 0 ? (totalOppRating / count) : 0;
+      });
+
+      return { ratings: r, sos, idx };
     }
-    const res={};
-    teams.forEach((t,i) => res[t]=Math.max(r[i],0.001));
-    return res;
-  }
 
-  function showTab(name, btn) {
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('tab-'+name).classList.add('active');
-    btn.classList.add('active');
-  }
+    function calculate() {
+      const res = computeKRACH(teams, games);
+      const sorted = [...teams].sort((a, b) => res.ratings[res.idx[b]] - res.ratings[res.idx[a]]);
+      const maxK = Math.max(...res.ratings);
 
-  loadData();
-</script>
+      // Render updated table with SOS column
+      let html = `<table><thead><tr><th>Rank</th><th>Team</th><th>KRACH</th><th>SOS</th><th>Chart</th></tr></thead><tbody>`;
+      sorted.forEach((t, i) => {
+        const rating = res.ratings[res.idx[t]];
+        const s = res.sos[t];
+        const norm = (rating / maxK * 100).toFixed(0);
+        html += `<tr>
+          <td>${i+1}</td>
+          <td>${t}</td>
+          <td>${rating.toFixed(2)}</td>
+          <td>${s.toFixed(2)}</td>
+          <td><div class="bar" style="width:${norm}%"></div></td>
+        </tr>`;
+      });
+      document.getElementById('tab-rankings').innerHTML = html + `</tbody></table>`;
+      document.getElementById('export-btn').style.display = 'inline-block';
+    }
+
+    function exportToCSV() {
+      const res = computeKRACH(teams, games);
+      const sorted = [...teams].sort((a, b) => res.ratings[res.idx[b]] - res.ratings[res.idx[a]]);
+      let csv = "Rank,Team,KRACH,SOS\n";
+      sorted.forEach((t, i) => {
+        csv += `${i+1},"${t}",${res.ratings[res.idx[t]].toFixed(2)},${res.sos[t].toFixed(2)}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hockey_rankings.csv';
+      a.click();
+    }
+  </script>
 </body>
 </html>
