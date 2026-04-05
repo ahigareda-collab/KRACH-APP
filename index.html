@@ -7,32 +7,24 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; color: #111; min-height: 100vh; }
-
-    /* ── Header ── */
     header { background: #1a1a2e; color: #fff; padding: 0 2rem; display: flex; align-items: center; gap: 16px; height: 56px; }
     .header-logo { display: flex; align-items: center; gap: 10px; }
     header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
     .save-indicator { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #2a6a3a; color: #7ef0a0; display: none; margin-left: auto; }
     .save-indicator.visible { display: inline-block; }
-
-    /* ── Top nav ── */
-    .top-nav { background: #fff; border-bottom: 1px solid #e4e4e7; display: flex; padding: 0 2rem; gap: 0; }
-    .nav-btn { padding: 0 20px; height: 44px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: none; color: #666; border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
+    .top-nav { background: #fff; border-bottom: 1px solid #e4e4e7; display: flex; padding: 0 2rem; }
+    .nav-btn { padding: 0 20px; height: 44px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: none; color: #666; border-bottom: 3px solid transparent; margin-bottom: -1px; }
     .nav-btn:hover { color: #1a1a2e; }
     .nav-btn.active { color: #1a1a2e; border-bottom-color: #6366f1; }
-
-    /* ── App layout ── */
     .app { display: flex; min-height: calc(100vh - 100px); }
     .sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e4e4e7; display: flex; flex-direction: column; transition: width 0.2s ease, min-width 0.2s ease; overflow: hidden; }
     .sidebar.collapsed { width: 44px; min-width: 44px; }
-    .sidebar.collapsed .sidebar-header h2,
-    .sidebar.collapsed .division-list,
-    .sidebar.collapsed .sidebar-add { display: none; }
+    .sidebar.collapsed .sidebar-header h2, .sidebar.collapsed .division-list, .sidebar.collapsed .sidebar-add { display: none; }
+    .sidebar.collapsed .sidebar-header { justify-content: center; padding: 0.75rem 0; }
     .sidebar-header { padding: 0.75rem 1rem; border-bottom: 1px solid #e4e4e7; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .sidebar-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; white-space: nowrap; }
     .toggle-btn { background: none; border: none; cursor: pointer; color: #888; padding: 4px; border-radius: 4px; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .toggle-btn:hover { background: #f4f4f5; color: #333; }
-    .sidebar.collapsed .sidebar-header { justify-content: center; padding: 0.75rem 0; }
     .division-list { flex: 1; overflow-y: auto; }
     .division-item { display: flex; align-items: center; gap: 6px; padding: 10px 12px; cursor: pointer; font-size: 14px; border-left: 3px solid transparent; }
     .division-item:hover { background: #f9f9fb; }
@@ -45,33 +37,29 @@
     .sidebar-add input:focus { border-color: #6366f1; }
     .sidebar-add button { width: 100%; height: 32px; background: #1a1a2e; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
     .sidebar-add button:hover { background: #2d2d4e; }
-
-    /* ── Main content ── */
     .main { flex: 1; padding: 1.5rem; overflow-y: auto; min-width: 0; }
     .page { display: none; }
     .page.active { display: block; }
     .no-division { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh; color: #aaa; gap: 8px; text-align: center; }
     .no-division p { font-size: 15px; color: #666; font-weight: 500; }
     .no-division small { font-size: 13px; }
-    .division-title { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; }
+    .division-title { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
     .division-title h2 { font-size: 20px; font-weight: 600; }
     .division-badge { font-size: 11px; background: #eff6ff; color: #3730a3; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
-
-    /* ── Cards / forms ── */
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
     @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .sidebar { width: 160px; min-width: 160px; } }
     .card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; padding: 1.25rem 1.5rem; }
     .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; color: #333; }
     .card-full { margin-bottom: 1.25rem; }
     label { font-size: 12px; color: #666; display: block; margin-bottom: 3px; margin-top: 10px; }
-    input[type=text], select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 14px; background: #fff; color: #111; outline: none; }
-    input[type=text]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    input[type=text], input[type=date], select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 14px; background: #fff; color: #111; outline: none; }
+    input[type=text]:focus, input[type=date]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
     .btn { height: 36px; padding: 0 14px; border: 1px solid #d4d4d8; border-radius: 8px; background: #fff; color: #111; font-size: 14px; cursor: pointer; white-space: nowrap; }
     .btn:hover { background: #f4f4f5; }
     .btn.primary { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
     .btn.primary:hover { background: #2d2d4e; }
-    .btn.playoff { background: #7c3aed; color: #fff; border-color: #7c3aed; }
-    .btn.playoff:hover { background: #6d28d9; }
+    .btn.tournament { background: #0891b2; color: #fff; border-color: #0891b2; }
+    .btn.tournament:hover { background: #0e7490; }
     .btn.danger { color: #dc2626; border-color: #fca5a5; }
     .btn.danger:hover { background: #fef2f2; }
     .btn.sm { height: 28px; padding: 0 10px; font-size: 13px; }
@@ -84,13 +72,14 @@
     .section-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #aaa; padding: 8px 0 4px; border-top: 1px solid #f4f4f5; margin-top: 8px; }
     .calc-bar { display: flex; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
     .game-type { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
-    .badge-reg { background: #e0e7ff; color: #3730a3; }
-    .badge-ot { background: #fef3c7; color: #92400e; }
-    .badge-tie { background: #f3f4f6; color: #374151; }
-    .badge-playoff { background: #ede9fe; color: #5b21b6; }
-    .badge-playoff-ot { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
-
-    /* ── Ratings page ── */
+    .badge-pool { background: #e0f2fe; color: #0369a1; }
+    .badge-bracket { background: #ede9fe; color: #5b21b6; }
+    .badge-bracket-ot { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+    .badge-pool-ot { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .tourn-selector { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .tourn-selector label { color: #0369a1; font-weight: 600; margin-top: 0; }
+    .tourn-selector select { border-color: #7dd3fc; }
+    .tourn-badge { display: inline-block; background: #0891b2; color: #fff; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
     @media (max-width: 600px) { .metrics { grid-template-columns: 1fr 1fr; } }
     .metric { background: #fff; border-radius: 10px; border: 1px solid #e4e4e7; padding: 1rem 1.25rem; }
@@ -119,6 +108,21 @@
     .matrix-table td.self { background: #f4f4f5; color: #aaa; }
     .cell-high { background: rgba(34,197,94,0.12); color: #166534; }
     .cell-low { background: rgba(239,68,68,0.08); color: #991b1b; }
+    .info-note { font-size: 13px; color: #7c3aed; margin-bottom: 1rem; background: #ede9fe; padding: 8px 12px; border-radius: 8px; }
+    .tourn-card { background: #fff; border-radius: 10px; border: 1px solid #e4e4e7; margin-bottom: 1rem; overflow: hidden; }
+    .tourn-card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1.25rem; background: #f9f9fb; border-bottom: 1px solid #e4e4e7; }
+    .tourn-card-header h3 { font-size: 15px; font-weight: 600; }
+    .tourn-date { font-size: 12px; color: #888; }
+    .tourn-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .tourn-stat { padding: 0.75rem 1.25rem; border-right: 1px solid #f4f4f5; }
+    .tourn-stat:last-child { border-right: none; }
+    .tourn-stat .lbl { font-size: 11px; color: #888; margin-bottom: 2px; }
+    .tourn-stat .val { font-size: 16px; font-weight: 600; }
+    .tourn-teams { padding: 0.5rem 0; }
+    .tourn-team-row { display: flex; align-items: center; gap: 12px; padding: 6px 1.25rem; font-size: 14px; border-bottom: 1px solid #f9f9fb; }
+    .tourn-team-row:last-child { border-bottom: none; }
+    .tourn-team-name { flex: 1; font-weight: 500; }
+    .tourn-record { font-size: 13px; color: #666; min-width: 60px; }
     .bracket-wrap { overflow-x: auto; padding-bottom: 1rem; }
     .bracket { display: flex; gap: 0; align-items: flex-start; }
     .bracket-round { display: flex; flex-direction: column; min-width: 170px; padding: 0 12px; border-left: 1px solid #e4e4e7; }
@@ -129,15 +133,12 @@
     .bracket-team + .bracket-team { border-top: 1px solid #e4e4e7; }
     .bracket-team.winner { background: #f0fdf4; font-weight: 600; color: #166534; }
     .bracket-trophy { font-size: 20px; text-align: center; padding: 8px; }
-    .info-note { font-size: 13px; color: #7c3aed; margin-bottom: 1rem; background: #ede9fe; padding: 8px 12px; border-radius: 8px; }
     .ratings-empty { text-align: center; padding: 3rem 1rem; color: #aaa; }
     .ratings-empty p { font-size: 15px; color: #666; font-weight: 500; margin-bottom: 6px; }
-    .ratings-empty small { font-size: 13px; }
   </style>
 </head>
 <body>
 
-<!-- Header -->
 <header>
   <div class="header-logo">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
@@ -147,15 +148,12 @@
   <button onclick="logout()" style="margin-left:8px;height:30px;padding:0 14px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;background:transparent;color:#ccc;font-size:13px;cursor:pointer;">Log out</button>
 </header>
 
-<!-- Top nav -->
 <nav class="top-nav">
   <button class="nav-btn active" onclick="showPage('manage', this)">Manage</button>
   <button class="nav-btn" onclick="showPage('ratings', this)">Ratings</button>
 </nav>
 
 <div class="app">
-
-  <!-- Sidebar: divisions (shared across pages) -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <h2>Divisions</h2>
@@ -177,7 +175,7 @@
     <div class="page active" id="page-manage">
       <div class="no-division" id="manage-no-div">
         <p>No division selected</p>
-        <small>Add or select a division in the sidebar to get started.</small>
+        <small>Add or select a division in the sidebar.</small>
       </div>
       <div id="manage-content" style="display:none;">
         <div class="division-title">
@@ -185,10 +183,11 @@
           <span class="division-badge">Division</span>
         </div>
 
+        <!-- Teams + Tournament creation -->
         <div class="grid">
           <div class="card">
             <h2>Teams</h2>
-            <div id="teams-list"><p class="empty">No teams added yet.</p></div>
+            <div id="teams-list"><p class="empty">No teams yet.</p></div>
             <div class="row" style="margin-top:12px;">
               <input type="text" id="new-team" placeholder="Team name" />
               <button class="btn" onclick="addTeam()">+ Add</button>
@@ -197,45 +196,73 @@
           </div>
 
           <div class="card">
-            <h2>Log a game result</h2>
-            <label>Game type</label>
-            <select id="game-category" onchange="toggleGameCategory()">
-              <option value="regular">Regular season</option>
-              <option value="playoff">Playoff</option>
-            </select>
-            <div id="playoff-round-row" style="display:none;">
-              <label>Playoff round</label>
-              <select id="playoff-round">
-                <option value="First Round">First Round</option>
-                <option value="Quarterfinals">Quarterfinals</option>
-                <option value="Semifinals">Semifinals</option>
-                <option value="Finals">Finals</option>
-              </select>
-            </div>
-            <label>Winner</label>
-            <select id="winner-sel"></select>
-            <label>Loser</label>
-            <select id="loser-sel"></select>
-            <label>Result type</label>
-            <select id="result-type">
-              <option value="W">Win (regulation)</option>
-              <option value="OTW">Win (OT / shootout)</option>
-              <option value="T">Tie</option>
-            </select>
+            <h2>Tournaments</h2>
+            <div id="tournaments-list"><p class="empty">No tournaments yet.</p></div>
             <div style="margin-top:12px;">
-              <button class="btn primary" id="log-btn" onclick="addGame()">+ Log regular season game</button>
+              <label>Tournament name</label>
+              <input type="text" id="new-tourn-name" placeholder="e.g. Spring Classic" />
+              <label>Date</label>
+              <input type="date" id="new-tourn-date" />
+              <div class="row" style="margin-top:8px;">
+                <button class="btn tournament" onclick="addTournament()" style="width:100%;">+ Add tournament</button>
+              </div>
             </div>
-            <div class="error" id="game-error"></div>
+            <div class="error" id="tourn-error"></div>
           </div>
         </div>
 
+        <!-- Tournament selector + game logging -->
+        <div class="tourn-selector">
+          <label>Active tournament — logging games for:</label>
+          <select id="active-tournament" style="margin-top:6px;" onchange="renderGameLog()">
+            <option value="">— Select a tournament —</option>
+          </select>
+        </div>
+
+        <div class="card card-full" id="game-log-card" style="display:none;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+            <h2 style="margin:0;">Log a game result</h2>
+            <span class="tourn-badge" id="active-tourn-label"></span>
+          </div>
+          <div class="grid" style="margin-bottom:0;">
+            <div>
+              <label>Phase</label>
+              <select id="game-phase" onchange="togglePhase()">
+                <option value="pool">Pool play</option>
+                <option value="bracket">Bracket / elimination</option>
+              </select>
+              <label>Winner</label>
+              <select id="winner-sel"></select>
+              <label>Loser</label>
+              <select id="loser-sel"></select>
+              <label>Result type</label>
+              <select id="result-type">
+                <option value="W">Win (regulation)</option>
+                <option value="OTW">Win (OT / shootout)</option>
+                <option value="T">Tie</option>
+              </select>
+              <div style="margin-top:12px;">
+                <button class="btn primary" id="log-btn" onclick="addGame()">+ Log pool play game</button>
+              </div>
+              <div class="error" id="game-error"></div>
+            </div>
+            <div>
+              <p style="font-size:13px;color:#0369a1;background:#e0f2fe;padding:10px 12px;border-radius:8px;margin-top:10px;">
+                <strong>Pool play</strong> games count at normal weight.<br><br>
+                <strong>Bracket</strong> games count at <strong>2x</strong> weight in KRACH.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game log -->
         <div class="card card-full">
           <h2>Game log <span id="game-count" style="font-weight:400;color:#888;font-size:13px;"></span></h2>
           <div id="games-list"><p class="empty">No games logged yet.</p></div>
         </div>
 
         <div class="calc-bar">
-          <button class="btn danger" onclick="clearDivisionData()">Clear division data</button>
+          <button class="btn danger" onclick="clearDivisionData()">Clear all division data</button>
         </div>
       </div>
     </div>
@@ -244,7 +271,7 @@
     <div class="page" id="page-ratings">
       <div class="no-division" id="ratings-no-div">
         <p>No division selected</p>
-        <small>Select a division in the sidebar to view its ratings.</small>
+        <small>Select a division in the sidebar to view ratings.</small>
       </div>
       <div id="ratings-content" style="display:none;">
         <div class="division-title">
@@ -263,12 +290,12 @@
           <div class="ratings-tabs">
             <button class="ratings-tab active" onclick="showRatingsTab('rankings',this)">Rankings</button>
             <button class="ratings-tab" onclick="showRatingsTab('matrix',this)">Expected win % matrix</button>
-            <button class="ratings-tab" onclick="showRatingsTab('bracket',this)">Playoff bracket</button>
+            <button class="ratings-tab" onclick="showRatingsTab('tournaments',this)">Tournaments</button>
           </div>
           <div class="ratings-body">
             <div class="ratings-panel active" id="rtab-rankings"></div>
             <div class="ratings-panel" id="rtab-matrix"></div>
-            <div class="ratings-panel" id="rtab-bracket"></div>
+            <div class="ratings-panel" id="rtab-tournaments"></div>
           </div>
         </div>
       </div>
@@ -279,12 +306,16 @@
 
 <script>
   const API = window.location.origin + '/api';
-  let divisions = [];
-  let activeDivisionId = null;
-  let activeDivisionName = '';
-  let teams = [], games = [];
+  let divisions = [], activeDivisionId = null, activeDivisionName = '';
+  let teams = [], games = [], tournaments = [];
 
-  // ── Page navigation ──
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const btn = sidebar.querySelector('.toggle-btn');
+    sidebar.classList.toggle('collapsed');
+    btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#8250;' : '&#8249;';
+    btn.title = sidebar.classList.contains('collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
+  }
 
   function showPage(name, btn) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -292,8 +323,6 @@
     document.getElementById('page-' + name).classList.add('active');
     btn.classList.add('active');
   }
-
-  // ── API ──
 
   async function apiCall(method, path, body) {
     const res = await fetch(API + path, {
@@ -310,20 +339,12 @@
     setTimeout(() => el.classList.remove('visible'), 2000);
   }
 
-  // ── Divisions ──
-
-  function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const btn = sidebar.querySelector('.toggle-btn');
-    sidebar.classList.toggle('collapsed');
-    btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#8250;' : '&#8249;';
-    btn.title = sidebar.classList.contains('collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
-  }
-
   async function logout() {
     await fetch('/api/auth/logout', { method: 'DELETE' });
     window.location.href = '/login';
   }
+
+  // ── Divisions ──
 
   async function loadDivisions() {
     divisions = await apiCall('GET', '/divisions');
@@ -349,11 +370,7 @@
     e.stopPropagation();
     if (!confirm(`Delete division "${name}" and all its data?`)) return;
     await apiCall('DELETE', '/divisions', { id });
-    if (activeDivisionId === id) {
-      activeDivisionId = null;
-      activeDivisionName = '';
-      showNoDivision();
-    }
+    if (activeDivisionId === id) { activeDivisionId = null; activeDivisionName = ''; showNoDivision(); }
     await loadDivisions();
     flashSaved();
   }
@@ -377,32 +394,31 @@
   }
 
   async function selectDivision(id, name) {
-    activeDivisionId = id;
-    activeDivisionName = name;
-
+    activeDivisionId = id; activeDivisionName = name;
     document.getElementById('manage-no-div').style.display = 'none';
     document.getElementById('manage-content').style.display = 'block';
     document.getElementById('manage-heading').textContent = name;
-
     document.getElementById('ratings-no-div').style.display = 'none';
     document.getElementById('ratings-content').style.display = 'block';
     document.getElementById('ratings-heading').textContent = name;
     document.getElementById('ratings-results').style.display = 'none';
     document.getElementById('ratings-empty-state').style.display = 'block';
-
     renderDivisions();
     await loadDivisionData();
   }
 
-  // ── Teams & Games ──
+  // ── Data ──
 
   async function loadDivisionData() {
     if (!activeDivisionId) return;
     const data = await apiCall('GET', `/data?division_id=${activeDivisionId}`);
     teams = data.teams || [];
     games = data.games || [];
+    tournaments = data.tournaments || [];
     render();
   }
+
+  // ── Teams ──
 
   async function addTeam() {
     const inp = document.getElementById('new-team');
@@ -411,7 +427,7 @@
     if (!name) return;
     const res = await apiCall('POST', '/teams', { name, division_id: activeDivisionId });
     if (res.error) { document.getElementById('team-error').textContent = res.error; return; }
-    teams = res.teams; games = res.games;
+    teams = res.teams; games = res.games; tournaments = res.tournaments;
     inp.value = '';
     render();
     flashSaved();
@@ -425,18 +441,55 @@
     flashSaved();
   }
 
+  // ── Tournaments ──
+
+  async function addTournament() {
+    const name = document.getElementById('new-tourn-name').value.trim();
+    const date = document.getElementById('new-tourn-date').value || null;
+    document.getElementById('tourn-error').textContent = '';
+    if (!name) return;
+    const res = await apiCall('POST', '/tournaments', { division_id: activeDivisionId, name, date });
+    if (res.error) { document.getElementById('tourn-error').textContent = res.error; return; }
+    teams = res.teams; games = res.games; tournaments = res.tournaments;
+    document.getElementById('new-tourn-name').value = '';
+    document.getElementById('new-tourn-date').value = '';
+    render();
+    flashSaved();
+  }
+
+  async function deleteTournament(id, name, e) {
+    e.stopPropagation();
+    if (!confirm(`Delete tournament "${name}"? Its games will also be deleted.`)) return;
+    await apiCall('DELETE', '/tournaments', { id, division_id: activeDivisionId });
+    await loadDivisionData();
+    flashSaved();
+  }
+
+  // ── Games ──
+
+  function togglePhase() {
+    const isPool = document.getElementById('game-phase').value === 'pool';
+    document.getElementById('log-btn').textContent = isPool ? '+ Log pool play game' : '+ Log bracket game';
+    document.getElementById('log-btn').className = 'btn ' + (isPool ? 'primary' : 'tournament');
+    const tieOpt = document.querySelector('#result-type option[value="T"]');
+    tieOpt.disabled = !isPool;
+    if (!isPool && document.getElementById('result-type').value === 'T') document.getElementById('result-type').value = 'W';
+  }
+
   async function addGame() {
+    const tSel = document.getElementById('active-tournament');
+    const tournament_id = tSel.value ? parseInt(tSel.value) : null;
     const winner = document.getElementById('winner-sel').value;
     const loser = document.getElementById('loser-sel').value;
     const type = document.getElementById('result-type').value;
-    const isPlayoff = document.getElementById('game-category').value === 'playoff';
-    const round = isPlayoff ? document.getElementById('playoff-round').value : null;
+    const phase = document.getElementById('game-phase').value;
     document.getElementById('game-error').textContent = '';
+    if (!tournament_id) { document.getElementById('game-error').textContent = 'Select a tournament first.'; return; }
     if (!winner || !loser) { document.getElementById('game-error').textContent = 'Select two teams.'; return; }
     if (winner === loser) { document.getElementById('game-error').textContent = 'Teams must be different.'; return; }
-    const res = await apiCall('POST', '/games', { division_id: activeDivisionId, winner, loser, type, playoff: isPlayoff, round });
+    const res = await apiCall('POST', '/games', { division_id: activeDivisionId, tournament_id, winner, loser, type, phase });
     if (res.error) { document.getElementById('game-error').textContent = res.error; return; }
-    teams = res.teams; games = res.games;
+    teams = res.teams; games = res.games; tournaments = res.tournaments;
     render();
     flashSaved();
   }
@@ -448,7 +501,7 @@
   }
 
   async function clearDivisionData() {
-    if (!confirm('Clear all teams and games in this division? This cannot be undone.')) return;
+    if (!confirm('Clear all teams, tournaments and games in this division?')) return;
     await apiCall('DELETE', '/all', { division_id: activeDivisionId });
     await loadDivisionData();
     document.getElementById('ratings-results').style.display = 'none';
@@ -456,33 +509,68 @@
     flashSaved();
   }
 
-  function toggleGameCategory() {
-    const isPlayoff = document.getElementById('game-category').value === 'playoff';
-    document.getElementById('playoff-round-row').style.display = isPlayoff ? 'block' : 'none';
-    document.getElementById('log-btn').textContent = isPlayoff ? '+ Log playoff game' : '+ Log regular season game';
-    document.getElementById('log-btn').className = 'btn ' + (isPlayoff ? 'playoff' : 'primary');
-    const tieOpt = document.querySelector('#result-type option[value="T"]');
-    tieOpt.disabled = isPlayoff;
-    if (isPlayoff && document.getElementById('result-type').value === 'T') document.getElementById('result-type').value = 'W';
+  function renderGameLog() {
+    const tSel = document.getElementById('active-tournament');
+    const tid = tSel.value ? parseInt(tSel.value) : null;
+    const label = document.getElementById('active-tourn-label');
+    const card = document.getElementById('game-log-card');
+
+    if (tid) {
+      const t = tournaments.find(t => t.id === tid);
+      label.textContent = t ? t.name : '';
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+
+    const gEl = document.getElementById('games-list');
+    const filteredGames = tid ? games.filter(g => g.tournament_id === tid) : games;
+    document.getElementById('game-count').textContent = games.length ? `(${games.length} total)` : '';
+
+    if (!filteredGames.length) { gEl.innerHTML = '<p class="empty">No games logged yet.</p>'; return; }
+
+    const pool = filteredGames.filter(g => g.phase === 'pool');
+    const bracket = filteredGames.filter(g => g.phase === 'bracket');
+    let html = '';
+    if (pool.length) {
+      html += `<div class="section-divider">Pool play (${pool.length})</div>`;
+      html += pool.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
+    }
+    if (bracket.length) {
+      html += `<div class="section-divider">Bracket (${bracket.length})</div>`;
+      html += bracket.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
+    }
+    gEl.innerHTML = html;
   }
 
   function typeBadge(g) {
-    if (g.playoff) {
-      const cls = g.type === 'OTW' ? 'badge-playoff-ot' : 'badge-playoff';
-      const label = g.type === 'OTW' ? 'Playoff OT' : 'Playoff';
-      return `<span class="game-type ${cls}">${label}${g.round ? ' · ' + g.round : ''}</span>`;
+    if (g.phase === 'bracket') {
+      const cls = g.type === 'OTW' ? 'badge-bracket-ot' : 'badge-bracket';
+      return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Bracket OT' : 'Bracket'}</span>`;
     }
-    const cls = g.type === 'W' ? 'badge-reg' : g.type === 'OTW' ? 'badge-ot' : 'badge-tie';
-    const label = g.type === 'W' ? 'Reg' : g.type === 'OTW' ? 'OT/SO' : 'Tie';
-    return `<span class="game-type ${cls}">${label}</span>`;
+    const cls = g.type === 'OTW' ? 'badge-pool-ot' : 'badge-pool';
+    return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Pool OT' : g.type === 'T' ? 'Pool Tie' : 'Pool'}</span>`;
   }
 
   function render() {
-    const tEl = document.getElementById('teams-list');
-    tEl.innerHTML = teams.length === 0
-      ? '<p class="empty">No teams added yet.</p>'
+    // Teams
+    document.getElementById('teams-list').innerHTML = teams.length === 0
+      ? '<p class="empty">No teams yet.</p>'
       : teams.map(t => `<div class="list-item"><span>${t}</span><button class="btn sm danger" onclick="removeTeam('${t.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
 
+    // Tournaments list
+    document.getElementById('tournaments-list').innerHTML = tournaments.length === 0
+      ? '<p class="empty">No tournaments yet.</p>'
+      : tournaments.map(t => `<div class="list-item"><span><strong>${t.name}</strong>${t.date ? ' <span style="color:#888;font-size:12px;">'+t.date+'</span>' : ''}</span><button class="btn sm danger" onclick="deleteTournament(${t.id}, '${t.name.replace(/'/g,"\\'")}', event)">Remove</button></div>`).join('');
+
+    // Tournament selector
+    const tSel = document.getElementById('active-tournament');
+    const curVal = tSel.value;
+    tSel.innerHTML = '<option value="">— Select a tournament —</option>' +
+      tournaments.map(t => `<option value="${t.id}">${t.name}${t.date ? ' ('+t.date+')' : ''}</option>`).join('');
+    if (curVal && tournaments.find(t => t.id == curVal)) tSel.value = curVal;
+
+    // Team selects
     ['winner-sel','loser-sel'].forEach((id, i) => {
       const sel = document.getElementById(id);
       const cur = sel.value;
@@ -491,24 +579,12 @@
       else if (i === 1 && teams.length > 1) sel.selectedIndex = 1;
     });
 
-    const regular = games.filter(g => !g.playoff);
-    const playoff = games.filter(g => g.playoff);
-    document.getElementById('game-count').textContent = games.length ? `(${games.length})` : '';
-    let html = '';
-    if (regular.length) {
-      html += `<div class="section-divider">Regular season (${regular.length})</div>`;
-      html += regular.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
-    }
-    if (playoff.length) {
-      html += `<div class="section-divider">Playoffs (${playoff.length})</div>`;
-      html += playoff.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
-    }
-    document.getElementById('games-list').innerHTML = html || '<p class="empty">No games logged yet.</p>';
+    renderGameLog();
   }
 
   // ── KRACH ──
 
-  const PLAYOFF_WEIGHT = 2;
+  const BRACKET_WEIGHT = 2;
 
   function calculate() {
     if (!activeDivisionId) { alert('Select a division first.'); return; }
@@ -516,43 +592,45 @@
     if (games.length === 0) { alert('Log at least one game first.'); return; }
 
     const stats = {};
-    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 }; });
+    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pool_w: 0, pool_l: 0, bracket_w: 0, bracket_l: 0 }; });
     games.forEach(g => {
       stats[g.winner].gp++; stats[g.loser].gp++;
       if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
       else { stats[g.winner].wins++; stats[g.loser].losses++; }
-      if (g.playoff) { stats[g.winner].pwins++; stats[g.loser].plosses++; }
+      if (g.phase === 'pool') { stats[g.winner].pool_w++; stats[g.loser].pool_l++; }
+      else { stats[g.winner].bracket_w++; stats[g.loser].bracket_l++; }
     });
 
     const krach = computeKRACH(teams, games);
     const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
     const maxK = Math.max(...Object.values(krach));
-    const playoffGames = games.filter(g => g.playoff);
-    const regularGames = games.filter(g => !g.playoff);
+    const poolGames = games.filter(g => g.phase === 'pool');
+    const bracketGames = games.filter(g => g.phase === 'bracket');
 
     document.getElementById('metrics').innerHTML = `
       <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-      <div class="metric"><div class="lbl">Regular season</div><div class="val">${regularGames.length}</div></div>
-      <div class="metric"><div class="lbl">Playoff games</div><div class="val">${playoffGames.length}</div></div>
-      <div class="metric"><div class="lbl">Top rated</div><div class="val" style="font-size:15px;">${sorted[0]}</div></div>
+      <div class="metric"><div class="lbl">Tournaments</div><div class="val">${tournaments.length}</div></div>
+      <div class="metric"><div class="lbl">Pool games</div><div class="val">${poolGames.length}</div></div>
+      <div class="metric"><div class="lbl">Bracket games</div><div class="val">${bracketGames.length}</div></div>
     `;
 
     const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     document.getElementById('rtab-rankings').innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px;">
-        <p class="info-note" style="margin:0;flex:1;">Playoff games count as <strong>2x</strong> in the KRACH calculation.</p>
-        <button class="btn sm" onclick="downloadCSV()" style="white-space:nowrap;">&#8615; Download CSV</button>
+        <p class="info-note" style="margin:0;flex:1;">Bracket games count as <strong>2x</strong> in the KRACH calculation.</p>
+        <button class="btn sm" onclick="downloadCSV()">&#8615; Download CSV</button>
       </div>
       <table class="krach-table">
-        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Relative strength</th></tr></thead>
+        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Pool W-L</th><th>Bracket W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
         <tbody>${sorted.map((t,i) => {
           const s = stats[t];
           const norm = (krach[t]/maxK*120).toFixed(0);
-          const po = (s.pwins+s.plosses) > 0 ? `${s.pwins}-${s.plosses}` : '<span style="color:#bbb">—</span>';
           return `<tr>
             <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
             <td>${t}</td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
-            <td>${po}</td><td>${krach[t].toFixed(2)}</td>
+            <td>${s.pool_w}-${s.pool_l}</td>
+            <td>${s.bracket_w}-${s.bracket_l}</td>
+            <td>${krach[t].toFixed(2)}</td>
             <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
           </tr>`;
         }).join('')}</tbody>
@@ -564,49 +642,72 @@
       <div class="matrix-wrap">${buildMatrix(sorted, krach)}</div>
     `;
 
-    document.getElementById('rtab-bracket').innerHTML = buildBracket(playoffGames);
+    document.getElementById('rtab-tournaments').innerHTML = buildTournamentTab(stats);
 
-    // Store for CSV export
     window._lastRankings = { sorted, stats, krach, maxK, divisionName: activeDivisionName };
-
     document.getElementById('ratings-empty-state').style.display = 'none';
     document.getElementById('ratings-results').style.display = 'block';
 
-    // Switch to ratings page automatically
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-ratings').classList.add('active');
     document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
   }
 
+  function buildTournamentTab(stats) {
+    if (!tournaments.length) return '<p style="color:#aaa;font-size:14px;">No tournaments yet.</p>';
+    return tournaments.map(t => {
+      const tGames = games.filter(g => g.tournament_id === t.id);
+      const pool = tGames.filter(g => g.phase === 'pool');
+      const bracket = tGames.filter(g => g.phase === 'bracket');
+      const teamsInTourn = [...new Set(tGames.flatMap(g => [g.winner, g.loser]))];
+      const tStats = {};
+      teamsInTourn.forEach(name => { tStats[name] = { w: 0, l: 0, t: 0 }; });
+      tGames.forEach(g => {
+        if (g.type === 'T') { tStats[g.winner].t++; tStats[g.loser].t++; }
+        else { tStats[g.winner].w++; tStats[g.loser].l++; }
+      });
+      const sortedTeams = teamsInTourn.sort((a,b) => tStats[b].w - tStats[a].w);
+
+      return `<div class="tourn-card">
+        <div class="tourn-card-header">
+          <h3>${t.name}</h3>
+          ${t.date ? `<span class="tourn-date">${t.date}</span>` : ''}
+        </div>
+        <div class="tourn-stats">
+          <div class="tourn-stat"><div class="lbl">Teams</div><div class="val">${teamsInTourn.length}</div></div>
+          <div class="tourn-stat"><div class="lbl">Pool games</div><div class="val">${pool.length}</div></div>
+          <div class="tourn-stat"><div class="lbl">Bracket games</div><div class="val">${bracket.length}</div></div>
+        </div>
+        <div class="tourn-teams">
+          ${sortedTeams.map(name => {
+            const s = tStats[name];
+            const record = `${s.w}-${s.l}${s.t > 0 ? '-'+s.t : ''}`;
+            return `<div class="tourn-team-row">
+              <span class="tourn-team-name">${name}</span>
+              <span class="tourn-record">${record}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   function downloadCSV() {
     const r = window._lastRankings;
     if (!r) { alert('Calculate ratings first.'); return; }
     const { sorted, stats, krach, maxK, divisionName } = r;
-    const rows = [
-      ['Rank', 'Team', 'GP', 'W', 'L', 'T', 'PO Wins', 'PO Losses', 'KRACH', 'Normalized (0-100)']
-    ];
-    sorted.forEach((t, i) => {
+    const rows = [['Rank','Team','GP','W','L','T','Pool W','Pool L','Bracket W','Bracket L','KRACH','Normalized']];
+    sorted.forEach((t,i) => {
       const s = stats[t];
-      rows.push([
-        i + 1,
-        t,
-        s.gp,
-        s.wins,
-        s.losses,
-        s.ties,
-        s.pwins,
-        s.plosses,
-        krach[t].toFixed(2),
-        (krach[t] / maxK * 100).toFixed(1)
-      ]);
+      rows.push([i+1, t, s.gp, s.wins, s.losses, s.ties, s.pool_w, s.pool_l, s.bracket_w, s.bracket_l, krach[t].toFixed(2), (krach[t]/maxK*100).toFixed(1)]);
     });
     const csv = rows.map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${divisionName.replace(/[^a-z0-9]/gi, '_')}_KRACH_Rankings.csv`;
+    a.download = `${divisionName.replace(/[^a-z0-9]/gi,'_')}_KRACH_Rankings.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -628,33 +729,6 @@
     return h + '</tbody></table>';
   }
 
-  function buildBracket(playoffGames) {
-    if (!playoffGames.length) return '<p style="font-size:14px;color:#aaa;padding:1rem 0;">No playoff games logged yet.</p>';
-    const roundOrder = ['First Round','Quarterfinals','Semifinals','Finals'];
-    const byRound = {};
-    playoffGames.forEach(g => {
-      const r = g.round || 'Playoffs';
-      if (!byRound[r]) byRound[r] = [];
-      byRound[r].push(g);
-    });
-    const rounds = roundOrder.filter(r => byRound[r]);
-    if (!rounds.length) Object.keys(byRound).forEach(r => rounds.push(r));
-    let html = '<div class="bracket-wrap"><div class="bracket">';
-    rounds.forEach(round => {
-      html += `<div class="bracket-round"><div class="bracket-round-label">${round}</div>`;
-      (byRound[round]||[]).forEach(g => {
-        html += `<div class="bracket-matchup">
-          <div class="bracket-team winner"><span>${g.winner}</span><span style="font-size:11px;color:#16a34a;">W</span></div>
-          <div class="bracket-team"><span style="text-decoration:line-through;color:#aaa;">${g.loser}</span><span style="font-size:11px;color:#dc2626;">L</span></div>
-        </div>`;
-      });
-      html += '</div>';
-    });
-    const champ = playoffGames[playoffGames.length-1]?.winner;
-    if (champ) html += `<div class="bracket-round"><div class="bracket-round-label">Champion</div><div class="bracket-matchup" style="border-color:#fbbf24;background:#fffbeb;"><div class="bracket-trophy">🏆</div><div class="bracket-team winner" style="background:#fffbeb;justify-content:center;font-size:14px;">${champ}</div></div></div>`;
-    return html + '</div></div>';
-  }
-
   function computeKRACH(teams, games) {
     const n = teams.length;
     const idx = {}; teams.forEach((t,i) => idx[t]=i);
@@ -662,7 +736,7 @@
     games.forEach(g => {
       if (!(g.winner in idx) || !(g.loser in idx)) return;
       const wi = idx[g.winner], li = idx[g.loser];
-      const w = g.playoff ? PLAYOFF_WEIGHT : 1;
+      const w = g.phase === 'bracket' ? BRACKET_WEIGHT : 1;
       if (g.type === 'T') { wins[wi] += 0.5*w; wins[li] += 0.5*w; }
       else { wins[wi] += w; }
       opponents[wi][li] = (opponents[wi][li]||0)+w;

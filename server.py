@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-KRACH Hockey Ratings - Render Web Server with PostgreSQL + Auth
+KRACH Hockey Ratings - Render Web Server with PostgreSQL + Tournaments
 """
 
 import json
 import os
 import secrets
-import hashlib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import psycopg2
@@ -16,13 +15,11 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
 
-# In-memory session store: token -> True
 sessions = {}
 
 
 def get_conn():
     url = DATABASE_URL
-    # Use SSL on Render (hosted), skip it for local connections
     if "render.com" in (url or ""):
         return psycopg2.connect(url, sslmode="require")
     return psycopg2.connect(url)
@@ -46,14 +43,23 @@ def init_db():
                 );
             """)
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS tournaments (
+                    id SERIAL PRIMARY KEY,
+                    division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    date TEXT,
+                    UNIQUE(name, division_id)
+                );
+            """)
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS games (
                     id SERIAL PRIMARY KEY,
                     division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
+                    tournament_id INTEGER REFERENCES tournaments(id) ON DELETE SET NULL,
                     winner TEXT NOT NULL,
                     loser TEXT NOT NULL,
                     type TEXT NOT NULL DEFAULT 'W',
-                    playoff BOOLEAN NOT NULL DEFAULT FALSE,
-                    round TEXT
+                    phase TEXT NOT NULL DEFAULT 'pool'
                 );
             """)
         conn.commit()
@@ -71,15 +77,21 @@ def load_division_data(division_id):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT name FROM teams WHERE division_id = %s ORDER BY id", (division_id,))
             teams = [row["name"] for row in cur.fetchall()]
+            cur.execute("SELECT id, name, date FROM tournaments WHERE division_id = %s ORDER BY date, id", (division_id,))
+            tournaments = [{"id": r["id"], "name": r["name"], "date": r["date"]} for r in cur.fetchall()]
             cur.execute("""
-                SELECT id, winner, loser, type, playoff, round
-                FROM games WHERE division_id = %s ORDER BY id
+                SELECT g.id, g.tournament_id, g.winner, g.loser, g.type, g.phase, t.name as tournament_name
+                FROM games g
+                LEFT JOIN tournaments t ON g.tournament_id = t.id
+                WHERE g.division_id = %s ORDER BY g.id
             """, (division_id,))
             games = [{
-                "id": row["id"], "winner": row["winner"], "loser": row["loser"],
-                "type": row["type"], "playoff": row["playoff"], "round": row["round"]
-            } for row in cur.fetchall()]
-    return {"teams": teams, "games": games}
+                "id": r["id"], "tournament_id": r["tournament_id"],
+                "tournament_name": r["tournament_name"],
+                "winner": r["winner"], "loser": r["loser"],
+                "type": r["type"], "phase": r["phase"]
+            } for r in cur.fetchall()]
+    return {"teams": teams, "tournaments": tournaments, "games": games}
 
 
 def get_session_token(headers):
@@ -128,7 +140,6 @@ class KRACHHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def require_auth(self):
-        """Returns True if authenticated, otherwise sends 401 and returns False."""
         if not is_authenticated(self.headers):
             self.send_json({"error": "Unauthorized"}, 401)
             return False
@@ -146,20 +157,15 @@ class KRACHHandler(BaseHTTPRequestHandler):
         path = parsed.path
         params = parse_qs(parsed.query)
 
-        # Public routes
         if path == "/standings":
             self.send_file("standings.html", "text/html")
             return
-
         if path == "/login":
             self.send_file("login.html", "text/html")
             return
-
-        # Public API (read-only, used by standings page)
         if path == "/api/divisions":
             self.send_json(load_divisions())
             return
-
         if path == "/api/data":
             div_id = params.get("division_id", [None])[0]
             if not div_id:
@@ -167,16 +173,12 @@ class KRACHHandler(BaseHTTPRequestHandler):
                 return
             self.send_json(load_division_data(int(div_id)))
             return
-
-        # Protected admin routes
         if path == "/" or path == "/index.html":
             if not is_authenticated(self.headers):
                 self.redirect("/login")
                 return
             self.send_file("index.html", "text/html")
             return
-
-        # Check auth status (used by frontend)
         if path == "/api/auth/check":
             self.send_json({"authenticated": is_authenticated(self.headers)})
             return
@@ -190,22 +192,19 @@ class KRACHHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length)) if length else {}
 
-        # Login endpoint — public
         if path == "/api/auth/login":
             username = body.get("username", "").strip()
             password = body.get("password", "")
             if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
                 token = secrets.token_hex(32)
                 sessions[token] = True
-                self.send_json(
-                    {"ok": True},
-                    extra_headers={"Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict"}
-                )
+                self.send_json({"ok": True}, extra_headers={
+                    "Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict"
+                })
             else:
                 self.send_json({"error": "Invalid username or password"}, 401)
             return
 
-        # All other POST routes require auth
         if not self.require_auth():
             return
 
@@ -239,21 +238,41 @@ class KRACHHandler(BaseHTTPRequestHandler):
             except psycopg2.errors.UniqueViolation:
                 self.send_json({"error": "Team already exists in this division"}, 400)
 
+        elif path == "/api/tournaments":
+            div_id = body.get("division_id")
+            name = body.get("name", "").strip()
+            date = body.get("date", None)
+            if not div_id or not name:
+                self.send_json({"error": "division_id and name required"}, 400)
+                return
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO tournaments (division_id, name, date) VALUES (%s, %s, %s) RETURNING id",
+                            (div_id, name, date)
+                        )
+                        new_id = cur.fetchone()[0]
+                    conn.commit()
+                self.send_json({"ok": True, "id": new_id, **load_division_data(div_id)})
+            except psycopg2.errors.UniqueViolation:
+                self.send_json({"error": "Tournament already exists in this division"}, 400)
+
         elif path == "/api/games":
             div_id = body.get("division_id")
+            tournament_id = body.get("tournament_id")
             winner = body.get("winner")
             loser = body.get("loser")
             result_type = body.get("type", "W")
-            playoff = bool(body.get("playoff", False))
-            round_name = body.get("round", None)
+            phase = body.get("phase", "pool")
             if not div_id or not winner or not loser or winner == loser:
                 self.send_json({"error": "Invalid game data"}, 400)
                 return
             with get_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO games (division_id, winner, loser, type, playoff, round) VALUES (%s, %s, %s, %s, %s, %s)",
-                        (div_id, winner, loser, result_type, playoff, round_name)
+                        "INSERT INTO games (division_id, tournament_id, winner, loser, type, phase) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (div_id, tournament_id, winner, loser, result_type, phase)
                     )
                 conn.commit()
             self.send_json({"ok": True, **load_division_data(div_id)})
@@ -268,15 +287,13 @@ class KRACHHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length)) if length else {}
 
-        # Logout
         if path == "/api/auth/logout":
             token = get_session_token(self.headers)
             if token in sessions:
                 del sessions[token]
-            self.send_json(
-                {"ok": True},
-                extra_headers={"Set-Cookie": "session=; Path=/; HttpOnly; Max-Age=0"}
-            )
+            self.send_json({"ok": True}, extra_headers={
+                "Set-Cookie": "session=; Path=/; HttpOnly; Max-Age=0"
+            })
             return
 
         if not self.require_auth():
@@ -292,6 +309,15 @@ class KRACHHandler(BaseHTTPRequestHandler):
                     cur.execute("DELETE FROM divisions WHERE id = %s", (div_id,))
                 conn.commit()
             self.send_json({"ok": True})
+
+        elif path == "/api/tournaments":
+            t_id = body.get("id")
+            div_id = body.get("division_id")
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM tournaments WHERE id = %s", (t_id,))
+                conn.commit()
+            self.send_json({"ok": True, **load_division_data(div_id)})
 
         elif path == "/api/teams":
             name = body.get("name")
@@ -319,6 +345,7 @@ class KRACHHandler(BaseHTTPRequestHandler):
                 with get_conn() as conn:
                     with conn.cursor() as cur:
                         cur.execute("DELETE FROM games WHERE division_id = %s", (div_id,))
+                        cur.execute("DELETE FROM tournaments WHERE division_id = %s", (div_id,))
                         cur.execute("DELETE FROM teams WHERE division_id = %s", (div_id,))
                     conn.commit()
                 self.send_json({"ok": True})
