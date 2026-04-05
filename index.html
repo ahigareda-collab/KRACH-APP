@@ -23,9 +23,16 @@
 
     /* ── App layout ── */
     .app { display: flex; min-height: calc(100vh - 100px); }
-    .sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e4e4e7; display: flex; flex-direction: column; }
-    .sidebar-header { padding: 1rem; border-bottom: 1px solid #e4e4e7; }
-    .sidebar-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; }
+    .sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e4e4e7; display: flex; flex-direction: column; transition: width 0.2s ease, min-width 0.2s ease; overflow: hidden; }
+    .sidebar.collapsed { width: 44px; min-width: 44px; }
+    .sidebar.collapsed .sidebar-header h2,
+    .sidebar.collapsed .division-list,
+    .sidebar.collapsed .sidebar-add { display: none; }
+    .sidebar-header { padding: 0.75rem 1rem; border-bottom: 1px solid #e4e4e7; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .sidebar-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; white-space: nowrap; }
+    .toggle-btn { background: none; border: none; cursor: pointer; color: #888; padding: 4px; border-radius: 4px; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .toggle-btn:hover { background: #f4f4f5; color: #333; }
+    .sidebar.collapsed .sidebar-header { justify-content: center; padding: 0.75rem 0; }
     .division-list { flex: 1; overflow-y: auto; }
     .division-item { display: flex; align-items: center; gap: 6px; padding: 10px 12px; cursor: pointer; font-size: 14px; border-left: 3px solid transparent; }
     .division-item:hover { background: #f9f9fb; }
@@ -149,8 +156,11 @@
 <div class="app">
 
   <!-- Sidebar: divisions (shared across pages) -->
-  <div class="sidebar">
-    <div class="sidebar-header"><h2>Divisions</h2></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>Divisions</h2>
+      <button class="toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">&#8249;</button>
+    </div>
     <div class="division-list" id="division-list">
       <div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>
     </div>
@@ -301,6 +311,14 @@
   }
 
   // ── Divisions ──
+
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const btn = sidebar.querySelector('.toggle-btn');
+    sidebar.classList.toggle('collapsed');
+    btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#8250;' : '&#8249;';
+    btn.title = sidebar.classList.contains('collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
+  }
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'DELETE' });
@@ -521,7 +539,10 @@
 
     const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     document.getElementById('rtab-rankings').innerHTML = `
-      <p class="info-note">Playoff games count as <strong>2x</strong> in the KRACH calculation.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px;">
+        <p class="info-note" style="margin:0;flex:1;">Playoff games count as <strong>2x</strong> in the KRACH calculation.</p>
+        <button class="btn sm" onclick="downloadCSV()" style="white-space:nowrap;">&#8615; Download CSV</button>
+      </div>
       <table class="krach-table">
         <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Relative strength</th></tr></thead>
         <tbody>${sorted.map((t,i) => {
@@ -545,6 +566,9 @@
 
     document.getElementById('rtab-bracket').innerHTML = buildBracket(playoffGames);
 
+    // Store for CSV export
+    window._lastRankings = { sorted, stats, krach, maxK, divisionName: activeDivisionName };
+
     document.getElementById('ratings-empty-state').style.display = 'none';
     document.getElementById('ratings-results').style.display = 'block';
 
@@ -553,6 +577,39 @@
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-ratings').classList.add('active');
     document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
+  }
+
+  function downloadCSV() {
+    const r = window._lastRankings;
+    if (!r) { alert('Calculate ratings first.'); return; }
+    const { sorted, stats, krach, maxK, divisionName } = r;
+    const rows = [
+      ['Rank', 'Team', 'GP', 'W', 'L', 'T', 'PO Wins', 'PO Losses', 'KRACH', 'Normalized (0-100)']
+    ];
+    sorted.forEach((t, i) => {
+      const s = stats[t];
+      rows.push([
+        i + 1,
+        t,
+        s.gp,
+        s.wins,
+        s.losses,
+        s.ties,
+        s.pwins,
+        s.plosses,
+        krach[t].toFixed(2),
+        (krach[t] / maxK * 100).toFixed(1)
+      ]);
+    });
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('
+');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${divisionName.replace(/[^a-z0-9]/gi, '_')}_KRACH_Rankings.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function buildMatrix(sorted, krach) {

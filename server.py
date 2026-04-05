@@ -21,7 +21,11 @@ sessions = {}
 
 
 def get_conn():
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
+    url = DATABASE_URL
+    # Use SSL on Render (hosted), skip it for local connections
+    if "render.com" in (url or ""):
+        return psycopg2.connect(url, sslmode="require")
+    return psycopg2.connect(url)
 
 
 def init_db():
