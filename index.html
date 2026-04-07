@@ -602,6 +602,7 @@
     });
 
     const krach = computeKRACH(teams, games);
+    const elo = computeElo(teams, games);
     const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
     const maxK = Math.max(...Object.values(krach));
     const poolGames = games.filter(g => g.phase === 'pool');
@@ -621,7 +622,7 @@
         <button class="btn sm" onclick="downloadCSV()">&#8615; Download CSV</button>
       </div>
       <table class="krach-table">
-        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Pool W-L</th><th>Bracket W-L</th><th>KRACH (×1000)</th><th>Strength</th></tr></thead>
+        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Pool W-L</th><th>Bracket W-L</th><th>KRACH (×1000)</th><th>Elo</th><th>Strength</th></tr></thead>
         <tbody>${sorted.map((t,i) => {
           const s = stats[t];
           const norm = (krach[t]/maxK*120).toFixed(0);
@@ -631,6 +632,7 @@
             <td>${s.pool_w}-${s.pool_l}</td>
             <td>${s.bracket_w}-${s.bracket_l}</td>
             <td>${(krach[t]*1000).toFixed(1)}</td>
+            <td>${Math.round(elo[t])}</td>
             <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
           </tr>`;
         }).join('')}</tbody>
@@ -644,7 +646,7 @@
 
     document.getElementById('rtab-tournaments').innerHTML = buildTournamentTab(stats);
 
-    window._lastRankings = { sorted, stats, krach, maxK, divisionName: activeDivisionName };
+    window._lastRankings = { sorted, stats, krach, elo, maxK, divisionName: activeDivisionName };
     document.getElementById('ratings-empty-state').style.display = 'none';
     document.getElementById('ratings-results').style.display = 'block';
 
@@ -696,11 +698,11 @@
   function downloadCSV() {
     const r = window._lastRankings;
     if (!r) { alert('Calculate ratings first.'); return; }
-    const { sorted, stats, krach, maxK, divisionName } = r;
-    const rows = [['Rank','Team','GP','W','L','T','Pool W','Pool L','Bracket W','Bracket L','KRACH','Normalized']];
+    const { sorted, stats, krach, elo, maxK, divisionName } = r;
+    const rows = [['Rank','Team','GP','W','L','T','Pool W','Pool L','Bracket W','Bracket L','KRACH (x1000)','Elo','Normalized']];
     sorted.forEach((t,i) => {
       const s = stats[t];
-      rows.push([i+1, t, s.gp, s.wins, s.losses, s.ties, s.pool_w, s.pool_l, s.bracket_w, s.bracket_l, (krach[t]*1000).toFixed(1), (krach[t]/maxK*100).toFixed(1)]);
+      rows.push([i+1, t, s.gp, s.wins, s.losses, s.ties, s.pool_w, s.pool_l, s.bracket_w, s.bracket_l, (krach[t]*1000).toFixed(1), Math.round(elo[t]), (krach[t]/maxK*100).toFixed(1)]);
     });
     const csv = rows.map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -727,6 +729,26 @@
       h += '</tr>';
     });
     return h + '</tbody></table>';
+  }
+
+  function computeElo(teams, games) {
+    const ratings = {};
+    teams.forEach(t => { ratings[t] = 1500; });
+    const ordered = [...games];
+    ordered.forEach(g => {
+      if (!(g.winner in ratings) || !(g.loser in ratings)) return;
+      const K = g.phase === 'bracket' ? 64 : 32;
+      const eW = 1 / (1 + Math.pow(10, (ratings[g.loser] - ratings[g.winner]) / 400));
+      const eL = 1 - eW;
+      if (g.type === 'T') {
+        ratings[g.winner] += K * (0.5 - eW);
+        ratings[g.loser]  += K * (0.5 - eL);
+      } else {
+        ratings[g.winner] += K * (1 - eW);
+        ratings[g.loser]  += K * (0 - eL);
+      }
+    });
+    return ratings;
   }
 
   function computeKRACH(teams, games) {
