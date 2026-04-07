@@ -606,9 +606,7 @@
     });
 
     const krach = computeKRACH(teams, games);
-    const elo = computeElo(teams, games);
-    const composite = computeComposite(teams, krach, elo);
-    const sorted = [...teams].sort((a,b) => composite[b] - composite[a]);
+    const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
     const maxK = Math.max(...Object.values(krach));
     const poolGames = games.filter(g => g.phase === 'pool');
     const bracketGames = games.filter(g => g.phase === 'bracket');
@@ -623,23 +621,20 @@
     const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     document.getElementById('rtab-rankings').innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px;">
-        <p class="info-note" style="margin:0;flex:1;">Bracket games count as <strong>2x</strong> in the KRACH calculation.</p>
-        <button class="toggle-details-btn" onclick="toggleDetails(this)">Show KRACH &amp; Elo breakdown</button>
+        <p class="info-note" style="margin:0;flex:1;">Bracket games count as <strong>2x</strong> in the KRACH calculation. Top-rated team scores 1000.</p>
         <button class="btn sm" onclick="downloadCSV()">&#8615; Download CSV</button>
       </div>
       <table class="krach-table">
-        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Pool W-L</th><th>Bracket W-L</th><th>Composite</th><th class="detail-col">KRACH (×1000)</th><th class="detail-col">Elo</th><th>Strength</th></tr></thead>
+        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Pool W-L</th><th>Bracket W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
         <tbody>${sorted.map((t,i) => {
           const s = stats[t];
-          const norm = (composite[t]/100*120).toFixed(0);
+          const norm = (krach[t]/maxK*120).toFixed(0);
           return `<tr>
             <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
             <td>${t}</td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
             <td>${s.pool_w}-${s.pool_l}</td>
             <td>${s.bracket_w}-${s.bracket_l}</td>
-            <td><strong>${composite[t].toFixed(1)}</strong></td>
-            <td class="detail-col" style="color:#888;font-size:13px;">${(krach[t]*1000).toFixed(1)}</td>
-            <td class="detail-col" style="color:#888;font-size:13px;">${Math.round(elo[t])}</td>
+            <td><strong>${(krach[t]/maxK*1000).toFixed(1)}</strong></td>
             <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
           </tr>`;
         }).join('')}</tbody>
@@ -653,7 +648,7 @@
 
     document.getElementById('rtab-tournaments').innerHTML = buildTournamentTab(stats);
 
-    window._lastRankings = { sorted, stats, krach, elo, composite, maxK, divisionName: activeDivisionName };
+    window._lastRankings = { sorted, stats, krach, maxK, divisionName: activeDivisionName };
     document.getElementById('ratings-empty-state').style.display = 'none';
     document.getElementById('ratings-results').style.display = 'block';
 
@@ -705,11 +700,11 @@
   function downloadCSV() {
     const r = window._lastRankings;
     if (!r) { alert('Calculate ratings first.'); return; }
-    const { sorted, stats, krach, elo, composite, maxK, divisionName } = r;
-    const rows = [['Rank','Team','GP','W','L','T','Pool W','Pool L','Bracket W','Bracket L','Composite','KRACH (x1000)','Elo','Normalized']];
+    const { sorted, stats, krach, maxK, divisionName } = r;
+    const rows = [['Rank','Team','GP','W','L','T','Pool W','Pool L','Bracket W','Bracket L','KRACH','Normalized']];
     sorted.forEach((t,i) => {
       const s = stats[t];
-      rows.push([i+1, t, s.gp, s.wins, s.losses, s.ties, s.pool_w, s.pool_l, s.bracket_w, s.bracket_l, composite[t].toFixed(1), (krach[t]*1000).toFixed(1), Math.round(elo[t]), (krach[t]/maxK*100).toFixed(1)]);
+      rows.push([i+1, t, s.gp, s.wins, s.losses, s.ties, s.pool_w, s.pool_l, s.bracket_w, s.bracket_l, (krach[t]/maxK*1000).toFixed(1), (krach[t]/maxK*100).toFixed(1)]);
     });
     const csv = rows.map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -738,49 +733,11 @@
     return h + '</tbody></table>';
   }
 
-  function computeElo(teams, games) {
-    const ratings = {};
-    teams.forEach(t => { ratings[t] = 1500; });
-    const ordered = [...games];
-    ordered.forEach(g => {
-      if (!(g.winner in ratings) || !(g.loser in ratings)) return;
-      const K = g.phase === 'bracket' ? 64 : 32;
-      const eW = 1 / (1 + Math.pow(10, (ratings[g.loser] - ratings[g.winner]) / 400));
-      const eL = 1 - eW;
-      if (g.type === 'T') {
-        ratings[g.winner] += K * (0.5 - eW);
-        ratings[g.loser]  += K * (0.5 - eL);
-      } else {
-        ratings[g.winner] += K * (1 - eW);
-        ratings[g.loser]  += K * (0 - eL);
-      }
     });
     return ratings;
   }
 
-  function toggleDetails(btn) {
-    const table = btn.closest('.ratings-panel').querySelector('.krach-table');
-    table.classList.toggle('show-details');
-    btn.textContent = table.classList.contains('show-details')
-      ? 'Hide KRACH & Elo breakdown'
-      : 'Show KRACH & Elo breakdown';
-  }
 
-  function computeComposite(teams, krach, elo) {
-    // Normalize KRACH to 0-1000 scale, Elo is already ~1500 range
-    // Normalize both to 0-100 then average
-    const krachVals = teams.map(t => krach[t]);
-    const eloVals = teams.map(t => elo[t]);
-    const maxK = Math.max(...krachVals), minK = Math.min(...krachVals);
-    const maxE = Math.max(...eloVals), minE = Math.min(...eloVals);
-    const composite = {};
-    teams.forEach(t => {
-      const kNorm = maxK === minK ? 50 : (krach[t] - minK) / (maxK - minK) * 100;
-      const eNorm = maxE === minE ? 50 : (elo[t] - minE) / (maxE - minE) * 100;
-      composite[t] = (kNorm * 0.5 + eNorm * 0.5);
-    });
-    return composite;
-  }
 
   function computeKRACH(teams, games) {
     const n = teams.length;
