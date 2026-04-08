@@ -135,6 +135,7 @@
     });
 
     const krach = computeKRACH(teams, games);
+    const elo = computeElo(teams, games);
     const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
     const maxK = Math.max(...Object.values(krach));
     const playoffGames = games.filter(g => g.playoff);
@@ -147,7 +148,7 @@
       <div class="info-note">Playoff games count as 2× in the KRACH calculation.</div>
       <div class="card-body">
         <table class="krach-table">
-          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Strength</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Elo</th><th>Strength</th></tr></thead>
           <tbody>${sorted.map((t,i) => {
             const s = stats[t];
             const norm = (krach[t]/maxK*120).toFixed(0);
@@ -156,6 +157,7 @@
               <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
               <td><strong>${t}</strong></td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
 <td><strong>${(krach[t]/maxK*1000).toFixed(1)}</strong></td>
+              <td>${Math.round(elo[t])}</td>
               <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
             </tr>`;
           }).join('')}</tbody>
@@ -221,6 +223,26 @@
   }
 
 
+
+
+  function computeElo(teams, games) {
+    const ratings = {};
+    teams.forEach(t => { ratings[t] = 1500; });
+    games.forEach(g => {
+      if (!(g.winner in ratings) || !(g.loser in ratings)) return;
+      const K = g.phase === 'bracket' ? 64 : 32;
+      const eW = 1 / (1 + Math.pow(10, (ratings[g.loser] - ratings[g.winner]) / 400));
+      const eL = 1 - eW;
+      if (g.type === 'T') {
+        ratings[g.winner] += K * (0.5 - eW);
+        ratings[g.loser]  += K * (0.5 - eL);
+      } else {
+        ratings[g.winner] += K * (1 - eW);
+        ratings[g.loser]  += K * (0 - eL);
+      }
+    });
+    return ratings;
+  }
 
   const MIN_GAMES = 8;       // teams below this get a confidence penalty
   const CONFIDENCE_BLEND = 0.4; // how much to pull low-game teams toward average (0=none, 1=full)
