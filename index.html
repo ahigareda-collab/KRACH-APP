@@ -181,6 +181,17 @@
         <div class="division-title">
           <h2 id="manage-heading"></h2>
           <span class="division-badge">Division</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+            <label style="font-size:12px;color:#666;margin:0;">Tier</label>
+            <select id="tier-select" onchange="updateTier()" style="width:auto;height:32px;font-size:13px;padding:0 8px;">
+              <option value="">— Unset —</option>
+              <option value="1">Tier 1</option>
+              <option value="2">Tier 2</option>
+              <option value="3">Tier 3</option>
+              <option value="4">Tier 4</option>
+              <option value="5">Tier 5</option>
+            </select>
+          </div>
         </div>
 
         <!-- Teams + Tournament creation -->
@@ -203,6 +214,27 @@
               <input type="text" id="new-tourn-name" placeholder="e.g. Spring Classic" />
               <label>Date</label>
               <input type="date" id="new-tourn-date" />
+              <label>Tournament type</label>
+              <select id="new-tourn-type" onchange="toggleCrossTierForm()">
+                <option value="division">Division tournament</option>
+                <option value="cross">Cross-tier tournament</option>
+              </select>
+              <div id="cross-tier-form" style="display:none;">
+                <label>Tier A</label>
+                <select id="new-tourn-tier-a">
+                  <option value="1">Tier 1</option>
+                  <option value="2">Tier 2</option>
+                  <option value="3">Tier 3</option>
+                  <option value="4">Tier 4</option>
+                </select>
+                <label>Tier B (must be adjacent)</label>
+                <select id="new-tourn-tier-b">
+                  <option value="2">Tier 2</option>
+                  <option value="3">Tier 3</option>
+                  <option value="4">Tier 4</option>
+                  <option value="5">Tier 5</option>
+                </select>
+              </div>
               <div class="row" style="margin-top:8px;">
                 <button class="btn tournament" onclick="addTournament()" style="width:100%;">+ Add tournament</button>
               </div>
@@ -388,6 +420,7 @@
     el.innerHTML = divisions.map(d => `
       <div class="division-item ${d.id === activeDivisionId ? 'active' : ''}" onclick="selectDivision(${d.id}, '${d.name.replace(/'/g,"\\'")}')">
         <span class="div-name">${d.name}</span>
+        ${d.tier ? `<span style="font-size:10px;font-weight:600;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;margin-right:2px;">T${d.tier}</span>` : ''}
         <span class="del-div" onclick="deleteDivision(${d.id}, '${d.name.replace(/'/g,"\\'")}', event)">×</span>
       </div>
     `).join('');
@@ -398,6 +431,8 @@
     document.getElementById('manage-no-div').style.display = 'none';
     document.getElementById('manage-content').style.display = 'block';
     document.getElementById('manage-heading').textContent = name;
+    const div = divisions.find(d => d.id === id);
+    document.getElementById('tier-select').value = div && div.tier ? div.tier : '';
     document.getElementById('ratings-no-div').style.display = 'none';
     document.getElementById('ratings-content').style.display = 'block';
     document.getElementById('ratings-heading').textContent = name;
@@ -408,6 +443,13 @@
   }
 
   // ── Data ──
+
+  async function updateTier() {
+    const tier = document.getElementById('tier-select').value;
+    await apiCall('POST', '/api/divisions/tier', { id: activeDivisionId, tier: tier || null });
+    await loadDivisions();
+    flashSaved();
+  }
 
   async function loadDivisionData() {
     if (!activeDivisionId) return;
@@ -443,16 +485,41 @@
 
   // ── Tournaments ──
 
+  function toggleCrossTierForm() {
+    const isCross = document.getElementById('new-tourn-type').value === 'cross';
+    document.getElementById('cross-tier-form').style.display = isCross ? 'block' : 'none';
+    // Auto-set tier B to tier A + 1
+    if (isCross) {
+      const tierA = parseInt(document.getElementById('new-tourn-tier-a').value);
+      document.getElementById('new-tourn-tier-b').value = tierA + 1;
+    }
+  }
+
   async function addTournament() {
     const name = document.getElementById('new-tourn-name').value.trim();
     const date = document.getElementById('new-tourn-date').value || null;
+    const isCross = document.getElementById('new-tourn-type').value === 'cross';
     document.getElementById('tourn-error').textContent = '';
     if (!name) return;
-    const res = await apiCall('POST', '/tournaments', { division_id: activeDivisionId, name, date });
+    let payload = { name, date };
+    if (isCross) {
+      const tier_a = parseInt(document.getElementById('new-tourn-tier-a').value);
+      const tier_b = parseInt(document.getElementById('new-tourn-tier-b').value);
+      if (Math.abs(tier_a - tier_b) !== 1) {
+        document.getElementById('tourn-error').textContent = 'Tiers must be adjacent (e.g. Tier 1 & Tier 2).';
+        return;
+      }
+      payload = { ...payload, cross_tier: true, tier_a, tier_b };
+    } else {
+      payload = { ...payload, division_id: activeDivisionId };
+    }
+    const res = await apiCall('POST', '/tournaments', payload);
     if (res.error) { document.getElementById('tourn-error').textContent = res.error; return; }
     teams = res.teams; games = res.games; tournaments = res.tournaments;
     document.getElementById('new-tourn-name').value = '';
     document.getElementById('new-tourn-date').value = '';
+    document.getElementById('new-tourn-type').value = 'division';
+    document.getElementById('cross-tier-form').style.display = 'none';
     render();
     flashSaved();
   }
@@ -467,6 +534,40 @@
 
   // ── Games ──
 
+  let crossTierTeams = [];
+
+  async function loadCrossTierTeams(tier_a, tier_b, tid) {
+    const res = await apiCall('GET', `/cross-tier-teams?tier_a=${tier_a}&tier_b=${tier_b}`);
+    crossTierTeams = Array.isArray(res) ? res : [];
+    populateTeamSelects(crossTierTeams.map(t => t.name), crossTierTeams);
+    // Store division info on selects for game logging
+    document.getElementById('winner-sel').dataset.crossTier = '1';
+    document.getElementById('loser-sel').dataset.crossTier = '1';
+  }
+
+  function populateTeamSelects(teamNames, crossTierData) {
+    ['winner-sel','loser-sel'].forEach((id, i) => {
+      const sel = document.getElementById(id);
+      const cur = sel.value;
+      if (crossTierData && crossTierData.length) {
+        // Group by tier
+        const byTier = {};
+        crossTierData.forEach(t => {
+          if (!byTier[t.tier]) byTier[t.tier] = [];
+          byTier[t.tier].push(t);
+        });
+        sel.innerHTML = Object.entries(byTier).map(([tier, tierTeams]) =>
+          `<optgroup label="Tier ${tier}">${tierTeams.map(t => `<option value="${t.name}" data-div="${t.division_id}">${t.name}</option>`).join('')}</optgroup>`
+        ).join('');
+      } else {
+        sel.innerHTML = teamNames.map(t => `<option>${t}</option>`).join('');
+        delete sel.dataset.crossTier;
+      }
+      if (teamNames.includes(cur)) sel.value = cur;
+      else if (i === 1 && teamNames.length > 1) sel.selectedIndex = 1;
+    });
+  }
+
   function togglePhase() {
     const isPool = document.getElementById('game-phase').value === 'pool';
     document.getElementById('log-btn').textContent = isPool ? '+ Log pool play game' : '+ Log bracket game';
@@ -479,15 +580,29 @@
   async function addGame() {
     const tSel = document.getElementById('active-tournament');
     const tournament_id = tSel.value ? parseInt(tSel.value) : null;
-    const winner = document.getElementById('winner-sel').value;
-    const loser = document.getElementById('loser-sel').value;
+    const winnerSel = document.getElementById('winner-sel');
+    const loserSel = document.getElementById('loser-sel');
+    const winner = winnerSel.value;
+    const loser = loserSel.value;
     const type = document.getElementById('result-type').value;
     const phase = document.getElementById('game-phase').value;
     document.getElementById('game-error').textContent = '';
     if (!tournament_id) { document.getElementById('game-error').textContent = 'Select a tournament first.'; return; }
     if (!winner || !loser) { document.getElementById('game-error').textContent = 'Select two teams.'; return; }
     if (winner === loser) { document.getElementById('game-error').textContent = 'Teams must be different.'; return; }
-    const res = await apiCall('POST', '/games', { division_id: activeDivisionId, tournament_id, winner, loser, type, phase });
+
+    const t = tournaments.find(t => t.id === tournament_id);
+    let payload = { tournament_id, winner, loser, type, phase };
+    if (t && t.cross_tier) {
+      const winnerOpt = winnerSel.querySelector(`option[value="${winner}"]`);
+      const loserOpt = loserSel.querySelector(`option[value="${loser}"]`);
+      payload.cross_tier = true;
+      payload.winner_division_id = winnerOpt ? parseInt(winnerOpt.dataset.div) : null;
+      payload.loser_division_id = loserOpt ? parseInt(loserOpt.dataset.div) : null;
+    } else {
+      payload.division_id = activeDivisionId;
+    }
+    const res = await apiCall('POST', '/games', payload);
     if (res.error) { document.getElementById('game-error').textContent = res.error; return; }
     teams = res.teams; games = res.games; tournaments = res.tournaments;
     render();
@@ -519,6 +634,12 @@
       const t = tournaments.find(t => t.id === tid);
       label.textContent = t ? t.name : '';
       card.style.display = 'block';
+      // Load cross-tier teams if needed
+      if (t && t.cross_tier) {
+        loadCrossTierTeams(t.tier_a, t.tier_b, tid);
+      } else {
+        populateTeamSelects(teams, null);
+      }
     } else {
       card.style.display = 'none';
     }
@@ -544,12 +665,13 @@
   }
 
   function typeBadge(g) {
+    const crossLabel = g.cross_tier ? ' <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px;">Cross-tier</span>' : '';
     if (g.phase === 'bracket') {
       const cls = g.type === 'OTW' ? 'badge-bracket-ot' : 'badge-bracket';
-      return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Bracket OT' : 'Bracket'}</span>`;
+      return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Bracket OT' : 'Bracket'}</span>${crossLabel}`;
     }
     const cls = g.type === 'OTW' ? 'badge-pool-ot' : 'badge-pool';
-    return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Pool OT' : g.type === 'T' ? 'Pool Tie' : 'Pool'}</span>`;
+    return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Pool OT' : g.type === 'T' ? 'Pool Tie' : 'Pool'}</span>${crossLabel}`;
   }
 
   function render() {
@@ -561,7 +683,7 @@
     // Tournaments list
     document.getElementById('tournaments-list').innerHTML = tournaments.length === 0
       ? '<p class="empty">No tournaments yet.</p>'
-      : tournaments.map(t => `<div class="list-item"><span><strong>${t.name}</strong>${t.date ? ' <span style="color:#888;font-size:12px;">'+t.date+'</span>' : ''}</span><button class="btn sm danger" onclick="deleteTournament(${t.id}, '${t.name.replace(/'/g,"\\'")}', event)">Remove</button></div>`).join('');
+      : tournaments.map(t => `<div class="list-item"><span><strong>${t.name}</strong>${t.date ? ' <span style="color:#888;font-size:12px;">'+t.date+'</span>' : ''}${t.cross_tier ? ' <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:10px;">Tier '+t.tier_a+' vs Tier '+t.tier_b+'</span>' : ''}</span><button class="btn sm danger" onclick="deleteTournament(${t.id}, '${t.name.replace(/'/g,"\\'")}', event)">Remove</button></div>`).join('');
 
     // Tournament selector
     const tSel = document.getElementById('active-tournament');
@@ -571,13 +693,7 @@
     if (curVal && tournaments.find(t => t.id == curVal)) tSel.value = curVal;
 
     // Team selects
-    ['winner-sel','loser-sel'].forEach((id, i) => {
-      const sel = document.getElementById(id);
-      const cur = sel.value;
-      sel.innerHTML = teams.map(t => `<option>${t}</option>`).join('');
-      if (teams.includes(cur)) sel.value = cur;
-      else if (i === 1 && teams.length > 1) sel.selectedIndex = 1;
-    });
+    populateTeamSelects(teams, null);
 
     renderGameLog();
   }

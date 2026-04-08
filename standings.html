@@ -66,6 +66,12 @@
 
     .info-note { font-size: 12px; color: #7c3aed; background: #ede9fe; padding: 6px 16px; border-radius: 0; display: flex; align-items: center; gap: 6px; }
 
+    .tier-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
+    .tier-1 { background: #fef3c7; color: #92400e; }
+    .tier-2 { background: #e0e7ff; color: #3730a3; }
+    .tier-3 { background: #dcfce7; color: #166534; }
+    .tier-4 { background: #f3f4f6; color: #374151; }
+    .tier-5 { background: #fce7f3; color: #9d174d; }
     .loading { text-align: center; padding: 3rem; color: #aaa; font-size: 14px; }
     .empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; }
     .empty-state p { font-size: 15px; color: #555; font-weight: 500; margin-bottom: 6px; }
@@ -105,8 +111,15 @@
     );
 
     // Build division tabs
+    // Sort by tier then name
+    allData.sort((a, b) => {
+      if (a.tier && b.tier) return a.tier - b.tier;
+      if (a.tier) return -1;
+      if (b.tier) return 1;
+      return a.name.localeCompare(b.name);
+    });
     document.getElementById('div-tabs').innerHTML = allData.map((d, i) =>
-      `<span class="div-tab ${i===0?'active':''}" onclick="showDiv('div-${d.id}', this)">${d.name}</span>`
+      `<span class="div-tab ${i===0?'active':''}" onclick="showDiv('div-${d.id}', this)">${d.name}${d.tier ? `<span class="tier-badge tier-${d.tier}">Tier ${d.tier}</span>` : ''}</span>`
     ).join('');
 
     // Build panels
@@ -145,7 +158,7 @@
         <button class="sort-btn" data-sort="krach" onclick="sortPanel(${id}, 'krach')" style="height:28px;padding:0 12px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:#1a1a2e;color:#fff;">KRACH</button>
         <button class="sort-btn" data-sort="elo" onclick="sortPanel(${id}, 'elo')" style="height:28px;padding:0 12px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:transparent;color:#666;">Elo</button>
       </div>
-      <div class="info-note" style="margin-top:0.5rem;">Bracket games count as 2× in KRACH. Top team = 1000. Teams under 8 games are adjusted.</div>
+      <div class="info-note" style="margin-top:0.5rem;">Bracket games count as 2×. Top team = 1000. Teams under 8 games are adjusted. Cross-tier games count toward each team's division rating.</div>
       <div class="card-body">
         <table class="krach-table">
           <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Elo</th><th>Strength</th></tr></thead>
@@ -177,7 +190,7 @@
       </div>
       <div class="card">
         <div class="card-header">
-          <h2>${d.name} Standings</h2>
+          <h2>${d.name} Standings${d.tier ? `<span class="tier-badge tier-${d.tier}">Tier ${d.tier}</span>` : ''}</h2>
         </div>
         <div class="view-tabs" style="padding:0 1.5rem;">
           <button class="view-tab active" onclick="showView('rankings-${id}','matrix-${id}',this)">Rankings</button>
