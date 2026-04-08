@@ -92,6 +92,37 @@
   const API = window.location.origin + '/api';
   const PLAYOFF_WEIGHT = 2;
 
+  const sortState = {}; // divId -> 'krach' | 'elo'
+
+  function sortPanel(divId, by) {
+    sortState[divId] = by;
+    const panel = document.getElementById('div-' + divId);
+    if (!panel) return;
+    // Update active button styles
+    panel.querySelectorAll('.sort-btn').forEach(b => {
+      b.style.background = b.dataset.sort === by ? '#1a1a2e' : 'transparent';
+      b.style.color = b.dataset.sort === by ? '#fff' : '#666';
+    });
+    // Re-sort table rows
+    const tbody = panel.querySelector('.krach-table tbody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const aVal = parseFloat(a.dataset[by]) || 0;
+      const bVal = parseFloat(b.dataset[by]) || 0;
+      return bVal - aVal;
+    });
+    // Re-rank
+    rows.forEach((row, i) => {
+      const rankEl = row.querySelector('.rank');
+      if (rankEl) {
+        rankEl.textContent = i + 1;
+        rankEl.className = 'rank ' + (i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '');
+      }
+      tbody.appendChild(row);
+    });
+  }
+
   async function load() {
     const divisions = await fetch(`${API}/divisions`).then(r => r.json());
 
@@ -153,7 +184,7 @@
             const s = stats[t];
             const norm = (krach[t]/maxK*120).toFixed(0);
             
-            return `<tr>
+            return `<tr data-krach="${(krach[t]/maxK*1000).toFixed(1)}" data-elo="${Math.round(elo[t])}">
               <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
               <td><strong>${t}</strong></td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
 <td><strong>${(krach[t]/maxK*1000).toFixed(1)}</strong></td>
@@ -210,7 +241,8 @@
   function showDiv(id, btn) {
     document.querySelectorAll('.div-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.div-tab').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
     btn.classList.add('active');
   }
 
@@ -224,6 +256,10 @@
 
 
 
+
+  const BRACKET_WEIGHT = 2;
+  const MIN_GAMES = 8;
+  const CONFIDENCE_BLEND = 0.4;
 
   function computeElo(teams, games) {
     const ratings = {};
@@ -244,8 +280,6 @@
     return ratings;
   }
 
-  const MIN_GAMES = 8;       // teams below this get a confidence penalty
-  const CONFIDENCE_BLEND = 0.4; // how much to pull low-game teams toward average (0=none, 1=full)
 
   function computeKRACH(teams, games) {
     const n = teams.length;
@@ -276,7 +310,6 @@
       r = nr.map(v=>v/(norm||1));
     }
 
-    // Win rate adjustment — scale by win% relative to league average
     const totalWins = wins.reduce((a,b)=>a+b,0);
     const totalWeightedGames = gamesPlayed.reduce((a,b)=>a+b,0);
     const leagueWinRate = totalWeightedGames > 0 ? totalWins / totalWeightedGames : 0.5;
@@ -288,11 +321,9 @@
       return v * (0.7 + 0.3 * Math.max(0.1, Math.min(1.9, wrFactor * 2)));
     });
 
-    // Re-normalize after win rate adjustment
     const avg = r.reduce((a,b)=>a+b,0)/n;
     r = r.map(v => v/(avg||1));
 
-    // Confidence penalty for low game counts
     const res={};
     teams.forEach((t,i) => {
       let rating = Math.max(r[i], 0.001);
