@@ -32,7 +32,7 @@
     .division-item .div-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .division-item .del-div { opacity: 0; font-size: 16px; color: #dc2626; cursor: pointer; line-height: 1; padding: 0 2px; }
     .division-item:hover .del-div { opacity: 1; }
-    .sidebar-add { padding: 10px 12px; border-top: 1px solid #e4e4e7; }
+    .sidebar-add { padding: 10px 12px; border-bottom: 1px solid #e4e4e7; }
     .sidebar-add input { width: 100%; height: 32px; padding: 0 8px; border: 1px solid #d4d4d8; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 6px; }
     .sidebar-add input:focus { border-color: #6366f1; }
     .sidebar-add button { width: 100%; height: 32px; background: #1a1a2e; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
@@ -159,13 +159,13 @@
       <h2>Divisions</h2>
       <button class="toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">&#8249;</button>
     </div>
-    <div class="division-list" id="division-list">
-      <div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>
-    </div>
     <div class="sidebar-add">
       <input type="text" id="new-division" placeholder="Division name" />
       <button onclick="addDivision()">+ Add division</button>
       <div class="error" id="div-error" style="margin-top:4px;"></div>
+    </div>
+    <div class="division-list" id="division-list">
+      <div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>
     </div>
   </div>
 
