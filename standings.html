@@ -90,7 +90,7 @@
 
 <script>
   const API = window.location.origin + '/api';
-  const PLAYOFF_WEIGHT = 2;
+  const BRACKET_WEIGHT = 2;
 
   async function load() {
     const divisions = await fetch(`${API}/divisions`).then(r => r.json());
@@ -131,14 +131,14 @@
       stats[g.winner].gp++; stats[g.loser].gp++;
       if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
       else { stats[g.winner].wins++; stats[g.loser].losses++; }
-      if (g.playoff) { stats[g.winner].pwins++; stats[g.loser].plosses++; }
+      if (g.phase === 'bracket') { stats[g.winner].pwins++; stats[g.loser].plosses++; }
     });
 
     const krach = computeKRACH(teams, games);
     const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
     const maxK = Math.max(...Object.values(krach));
-    const playoffGames = games.filter(g => g.playoff);
-    const regularGames = games.filter(g => !g.playoff);
+    const playoffGames = games.filter(g => g.phase === 'bracket');
+    const regularGames = games.filter(g => g.phase === 'pool');
     const id = d.id;
 
     const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
@@ -147,7 +147,7 @@
       <div class="info-note">Bracket games count as 2× in the KRACH calculation. Top-rated team scores 1000.</div>
       <div class="card-body">
         <table class="krach-table">
-          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Bracket W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
           <tbody>${sorted.map((t,i) => {
             const s = stats[t];
             const norm = (krach[t]/maxK*120).toFixed(0);
@@ -171,8 +171,8 @@
     return `
       <div class="metrics">
         <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-        <div class="metric"><div class="lbl">Regular season games</div><div class="val">${regularGames.length}</div></div>
-        <div class="metric"><div class="lbl">Playoff games</div><div class="val">${playoffGames.length}</div></div>
+        <div class="metric"><div class="lbl">Pool games</div><div class="val">${regularGames.length}</div></div>
+        <div class="metric"><div class="lbl">Bracket games</div><div class="val">${playoffGames.length}</div></div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -233,7 +233,7 @@
     games.forEach(g => {
       if (!(g.winner in idx) || !(g.loser in idx)) return;
       const wi = idx[g.winner], li = idx[g.loser];
-      const w = g.playoff ? PLAYOFF_WEIGHT : 1;
+      const w = g.phase === 'bracket' ? BRACKET_WEIGHT : 1;
       if (g.type === 'T') { wins[wi] += 0.5*w; wins[li] += 0.5*w; }
       else { wins[wi] += w; }
       opponents[wi][li] = (opponents[wi][li]||0)+w;
