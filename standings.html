@@ -90,8 +90,6 @@
 
 <script>
   const API = window.location.origin + '/api';
-  const PLAYOFF_WEIGHT = 2;
-
   async function load() {
     const divisions = await fetch(`${API}/divisions`).then(r => r.json());
 
@@ -126,36 +124,39 @@
     }
 
     const stats = {};
-    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 }; });
+    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0 }; });
     games.forEach(g => {
       stats[g.winner].gp++; stats[g.loser].gp++;
       if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
       else { stats[g.winner].wins++; stats[g.loser].losses++; }
-      if (g.playoff) { stats[g.winner].pwins++; stats[g.loser].plosses++; }
     });
 
     const krach = computeKRACH(teams, games);
+    const elo = computeElo(teams, games);
     const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
     const maxK = Math.max(...Object.values(krach));
-    const playoffGames = games.filter(g => g.playoff);
-    const regularGames = games.filter(g => !g.playoff);
     const id = d.id;
 
     const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
 
     const rankingsHTML = `
-      <div class="info-note">Playoff games count as 2× in the KRACH calculation.</div>
+      <div style="display:flex;gap:6px;padding:0.75rem 1.5rem 0;align-items:center;">
+        <span style="font-size:12px;color:#888;margin-right:4px;">Sort by:</span>
+        <button class="sort-btn" data-sort="krach" onclick="sortPanel(${id}, 'krach')" style="height:28px;padding:0 12px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:#1a1a2e;color:#fff;">KRACH</button>
+        <button class="sort-btn" data-sort="elo" onclick="sortPanel(${id}, 'elo')" style="height:28px;padding:0 12px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:transparent;color:#666;">Elo</button>
+      </div>
+      <div class="info-note" style="margin-top:0.5rem;">Bracket games count as 2× in KRACH. Top team = 1000. Teams under 8 games are adjusted.</div>
       <div class="card-body">
         <table class="krach-table">
-          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PO W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Elo</th><th>Strength</th></tr></thead>
           <tbody>${sorted.map((t,i) => {
             const s = stats[t];
             const norm = (krach[t]/maxK*120).toFixed(0);
-            const po = (s.pwins+s.plosses) > 0 ? `${s.pwins}-${s.plosses}` : '<span style="color:#bbb">—</span>';
-            return `<tr>
+            return `<tr data-krach="${(krach[t]/maxK*1000).toFixed(1)}" data-elo="${Math.round(elo[t])}">
               <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
               <td><strong>${t}</strong></td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
-              <td>${po}</td><td>${krach[t].toFixed(2)}</td>
+              <td><strong>${(krach[t]/maxK*1000).toFixed(1)}</strong></td>
+              <td>${Math.round(elo[t])}</td>
               <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
             </tr>`;
           }).join('')}</tbody>
@@ -171,8 +172,8 @@
     return `
       <div class="metrics">
         <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-        <div class="metric"><div class="lbl">Regular season games</div><div class="val">${regularGames.length}</div></div>
-        <div class="metric"><div class="lbl">Playoff games</div><div class="val">${playoffGames.length}</div></div>
+        <div class="metric"><div class="lbl">Tournaments</div><div class="val">${d.tournaments ? d.tournaments.length : 0}</div></div>
+        <div class="metric"><div class="lbl">Games played</div><div class="val">${games.length}</div></div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -208,8 +209,32 @@
   function showDiv(id, btn) {
     document.querySelectorAll('.div-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.div-tab').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
     btn.classList.add('active');
+  }
+
+  const sortState = {};
+  function sortPanel(divId, by) {
+    sortState[divId] = by;
+    const panel = document.getElementById('div-' + divId);
+    if (!panel) return;
+    panel.querySelectorAll('.sort-btn').forEach(b => {
+      b.style.background = b.dataset.sort === by ? '#1a1a2e' : 'transparent';
+      b.style.color = b.dataset.sort === by ? '#fff' : '#666';
+    });
+    const tbody = panel.querySelector('.krach-table tbody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => parseFloat(b.dataset[by]||0) - parseFloat(a.dataset[by]||0));
+    rows.forEach((row, i) => {
+      const rankEl = row.querySelector('.rank');
+      if (rankEl) {
+        rankEl.textContent = i + 1;
+        rankEl.className = 'rank ' + (i===0?'gold':i===1?'silver':i===2?'bronze':'');
+      }
+      tbody.appendChild(row);
+    });
   }
 
   function showView(showId, hideId, btn) {
@@ -220,16 +245,41 @@
     btn.classList.add('active');
   }
 
+  const BRACKET_WEIGHT = 2;
+  const MIN_GAMES = 8;
+  const CONFIDENCE_BLEND = 0.4;
+
+  function computeElo(teams, games) {
+    const ratings = {};
+    teams.forEach(t => { ratings[t] = 1500; });
+    games.forEach(g => {
+      if (!(g.winner in ratings) || !(g.loser in ratings)) return;
+      const K = g.phase === 'bracket' ? 64 : 32;
+      const eW = 1 / (1 + Math.pow(10, (ratings[g.loser] - ratings[g.winner]) / 400));
+      const eL = 1 - eW;
+      if (g.type === 'T') {
+        ratings[g.winner] += K * (0.5 - eW);
+        ratings[g.loser]  += K * (0.5 - eL);
+      } else {
+        ratings[g.winner] += K * (1 - eW);
+        ratings[g.loser]  += K * (0 - eL);
+      }
+    });
+    return ratings;
+  }
+
   function computeKRACH(teams, games) {
     const n = teams.length;
     const idx = {}; teams.forEach((t,i) => idx[t]=i);
-    const wins = Array(n).fill(0), opponents = Array.from({length:n},()=>({}));
+    const wins = Array(n).fill(0), gamesPlayed = Array(n).fill(0);
+    const opponents = Array.from({length:n},()=>({}));
     games.forEach(g => {
       if (!(g.winner in idx) || !(g.loser in idx)) return;
       const wi = idx[g.winner], li = idx[g.loser];
-      const w = g.playoff ? PLAYOFF_WEIGHT : 1;
+      const w = g.phase === 'bracket' ? BRACKET_WEIGHT : 1;
       if (g.type === 'T') { wins[wi] += 0.5*w; wins[li] += 0.5*w; }
       else { wins[wi] += w; }
+      gamesPlayed[wi]++; gamesPlayed[li]++;
       opponents[wi][li] = (opponents[wi][li]||0)+w;
       opponents[li][wi] = (opponents[li][wi]||0)+w;
     });
@@ -244,8 +294,27 @@
       const norm = nr.reduce((a,b)=>a+b,0)/n;
       r = nr.map(v=>v/(norm||1));
     }
+    const totalWins = wins.reduce((a,b)=>a+b,0);
+    const totalGP = gamesPlayed.reduce((a,b)=>a+b,0);
+    const leagueWR = totalGP > 0 ? totalWins / totalGP : 0.5;
+    r = r.map((v, i) => {
+      const gp = gamesPlayed[i];
+      if (gp === 0) return v;
+      const wr = wins[i] / gp;
+      const wrf = 0.5 + (wr - leagueWR);
+      return v * (0.7 + 0.3 * Math.max(0.1, Math.min(1.9, wrf * 2)));
+    });
+    const avg = r.reduce((a,b)=>a+b,0)/n;
+    r = r.map(v => v/(avg||1));
     const res={};
-    teams.forEach((t,i) => res[t]=Math.max(r[i],0.001));
+    teams.forEach((t,i) => {
+      let rating = Math.max(r[i], 0.001);
+      if (gamesPlayed[i] < MIN_GAMES) {
+        const conf = gamesPlayed[i] / MIN_GAMES;
+        rating = rating * (1 - CONFIDENCE_BLEND * (1 - conf)) + 1.0 * CONFIDENCE_BLEND * (1 - conf);
+      }
+      res[t] = rating;
+    });
     return res;
   }
 
