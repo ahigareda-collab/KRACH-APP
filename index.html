@@ -446,7 +446,7 @@
 
   async function updateTier() {
     const tier = document.getElementById('tier-select').value;
-    await apiCall('POST', '/api/divisions/tier', { id: activeDivisionId, tier: tier || null });
+    await apiCall('POST', '/divisions/tier', { id: activeDivisionId, tier: tier || null });
     await loadDivisions();
     flashSaved();
   }
