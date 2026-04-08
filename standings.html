@@ -120,14 +120,21 @@
   }
 
   function buildPanel(d) {
-    const { teams, games } = d;
-    if (!teams.length || !games.length) {
-      return `<div class="empty-state"><p>No standings yet</p><small>Games haven't been logged for this division.</small></div>`;
+    const teams = d.teams || [];
+    const games = d.games || [];
+    const tournaments = d.tournaments || [];
+    if (!teams.length) {
+      return `<div class="empty-state"><p>No teams yet</p><small>Teams haven't been added to this division.</small></div>`;
+    }
+    if (!games.length) {
+      return `<div class="empty-state"><p>No games yet</p><small>Games haven't been logged for this division.</small></div>`;
     }
 
     const stats = {};
     teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 }; });
     games.forEach(g => {
+      if (!stats[g.winner]) stats[g.winner] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 };
+      if (!stats[g.loser]) stats[g.loser] = { wins: 0, losses: 0, ties: 0, gp: 0, pwins: 0, plosses: 0 };
       stats[g.winner].gp++; stats[g.loser].gp++;
       if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
       else { stats[g.winner].wins++; stats[g.loser].losses++; }
@@ -171,8 +178,8 @@
     return `
       <div class="metrics">
         <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-        <div class="metric"><div class="lbl">Pool games</div><div class="val">${regularGames.length}</div></div>
-        <div class="metric"><div class="lbl">Bracket games</div><div class="val">${playoffGames.length}</div></div>
+        <div class="metric"><div class="lbl">Tournaments</div><div class="val">${tournaments.length}</div></div>
+        <div class="metric"><div class="lbl">Total games</div><div class="val">${games.length}</div></div>
       </div>
       <div class="card">
         <div class="card-header">
