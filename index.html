@@ -1,335 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KRACH">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <title>KRACH Hockey Ratings</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; color: #111; min-height: 100vh; }
-    header { background: #1a1a2e; color: #fff; padding: 0 2rem; display: flex; align-items: center; gap: 16px; height: 56px; }
-    .header-logo { display: flex; align-items: center; gap: 10px; }
-    header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
-    .save-indicator { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: #2a6a3a; color: #7ef0a0; display: none; margin-left: auto; }
-    .save-indicator.visible { display: inline-block; }
-    .top-nav { background: #fff; border-bottom: 1px solid #e4e4e7; display: flex; padding: 0 2rem; }
-    .nav-btn { padding: 0 20px; height: 44px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: none; color: #666; border-bottom: 3px solid transparent; margin-bottom: -1px; }
-    .nav-btn:hover { color: #1a1a2e; }
-    .nav-btn.active { color: #1a1a2e; border-bottom-color: #6366f1; }
-    .app { display: flex; min-height: calc(100vh - 100px); }
-    .sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e4e4e7; display: flex; flex-direction: column; transition: width 0.2s ease, min-width 0.2s ease; overflow: hidden; }
-    .sidebar.collapsed { width: 44px; min-width: 44px; }
-    .sidebar.collapsed .sidebar-header h2, .sidebar.collapsed .division-list, .sidebar.collapsed .sidebar-add { display: none; }
-    .sidebar.collapsed .sidebar-header { justify-content: center; padding: 0.75rem 0; }
-    .sidebar-header { padding: 0.75rem 1rem; border-bottom: 1px solid #e4e4e7; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .sidebar-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; white-space: nowrap; }
-    .toggle-btn { background: none; border: none; cursor: pointer; color: #888; padding: 4px; border-radius: 4px; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .toggle-btn:hover { background: #f4f4f5; color: #333; }
-    .division-list { flex: 1; overflow-y: auto; }
-    .division-item { display: flex; align-items: center; gap: 6px; padding: 10px 12px; cursor: pointer; font-size: 14px; border-left: 3px solid transparent; }
-    .division-item:hover { background: #f9f9fb; }
-    .division-item.active { background: #eff6ff; border-left-color: #6366f1; font-weight: 500; color: #1a1a2e; }
-    .division-item .div-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .division-item .del-div { opacity: 0; font-size: 16px; color: #dc2626; cursor: pointer; line-height: 1; padding: 0 2px; }
-    .division-item:hover .del-div { opacity: 1; }
-    .sidebar-add { padding: 10px 12px; border-bottom: 1px solid #e4e4e7; }
-    .sidebar-add input { width: 100%; height: 32px; padding: 0 8px; border: 1px solid #d4d4d8; border-radius: 6px; font-size: 13px; outline: none; margin-bottom: 6px; }
-    .sidebar-add input:focus { border-color: #6366f1; }
-    .sidebar-add button { width: 100%; height: 32px; background: #1a1a2e; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
-    .sidebar-add button:hover { background: #2d2d4e; }
-    .main { flex: 1; padding: 1.5rem; overflow-y: auto; min-width: 0; }
-    .page { display: none; }
-    .page.active { display: block; }
-    .no-division { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh; color: #aaa; gap: 8px; text-align: center; }
-    .no-division p { font-size: 15px; color: #666; font-weight: 500; }
-    .no-division small { font-size: 13px; }
-    .division-title { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
-    .division-title h2 { font-size: 20px; font-weight: 600; }
-    .division-badge { font-size: 11px; background: #eff6ff; color: #3730a3; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
-    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .sidebar { width: 160px; min-width: 160px; } }
-    .card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; padding: 1.25rem 1.5rem; }
-    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; color: #333; }
-    .card-full { margin-bottom: 1.25rem; }
-    label { font-size: 12px; color: #666; display: block; margin-bottom: 3px; margin-top: 10px; }
-    input[type=text], input[type=date], select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 14px; background: #fff; color: #111; outline: none; }
-    input[type=text]:focus, input[type=date]:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-    .btn { height: 36px; padding: 0 14px; border: 1px solid #d4d4d8; border-radius: 8px; background: #fff; color: #111; font-size: 14px; cursor: pointer; white-space: nowrap; }
-    .btn:hover { background: #f4f4f5; }
-    .btn.primary { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-    .btn.primary:hover { background: #2d2d4e; }
-    .btn.tournament { background: #0891b2; color: #fff; border-color: #0891b2; }
-    .btn.tournament:hover { background: #0e7490; }
-    .btn.danger { color: #dc2626; border-color: #fca5a5; }
-    .btn.danger:hover { background: #fef2f2; }
-    .btn.sm { height: 28px; padding: 0 10px; font-size: 13px; }
-    .row { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
-    .list-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f4f4f5; font-size: 14px; }
-    .list-item:last-child { border-bottom: none; }
-    .list-item span { flex: 1; }
-    .empty { font-size: 13px; color: #aaa; padding: 8px 0; }
-    .error { font-size: 12px; color: #dc2626; margin-top: 4px; }
-    .section-divider { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #aaa; padding: 8px 0 4px; border-top: 1px solid #f4f4f5; margin-top: 8px; }
-    .calc-bar { display: flex; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
-    .game-type { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
-    .badge-pool { background: #e0f2fe; color: #0369a1; }
-    .badge-bracket { background: #ede9fe; color: #5b21b6; }
-    .badge-bracket-ot { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
-    .badge-pool-ot { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-    .tourn-selector { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
-    .tourn-selector label { color: #0369a1; font-weight: 600; margin-top: 0; }
-    .tourn-selector select { border-color: #7dd3fc; }
-    .tourn-badge { display: inline-block; background: #0891b2; color: #fff; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
-    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
-    @media (max-width: 600px) { .metrics { grid-template-columns: 1fr 1fr; } }
-    .metric { background: #fff; border-radius: 10px; border: 1px solid #e4e4e7; padding: 1rem 1.25rem; }
-    .metric .lbl { font-size: 12px; color: #666; margin-bottom: 4px; }
-    .metric .val { font-size: 22px; font-weight: 600; }
-    .ratings-tabs { display: flex; border-bottom: 1px solid #e4e4e7; background: #fff; border-radius: 12px 12px 0 0; border: 1px solid #e4e4e7; border-bottom: none; flex-wrap: wrap; }
-    .ratings-tab { padding: 10px 20px; font-size: 14px; cursor: pointer; border: none; background: none; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-    .ratings-tab.active { color: #1a1a2e; border-bottom-color: #6366f1; font-weight: 500; }
-    .ratings-body { background: #fff; border-radius: 0 0 12px 12px; border: 1px solid #e4e4e7; border-top: none; padding: 1.5rem; }
-    .ratings-panel { display: none; }
-    .ratings-panel.active { display: block; }
-    .krach-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .krach-table th { text-align: left; padding: 8px 12px; border-bottom: 1px solid #e4e4e7; font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .krach-table td { padding: 10px 12px; border-bottom: 1px solid #f4f4f5; }
-    .krach-table tr:last-child td { border-bottom: none; }
-    .rank { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: #f4f4f5; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
-    .rank.gold { background: #fef3c7; color: #92400e; }
-    .rank.silver { background: #f1f5f9; color: #475569; }
-    .rank.bronze { background: #fff7ed; color: #9a3412; }
-    .bar-wrap { display: flex; align-items: center; gap: 8px; }
-    .bar { height: 8px; background: #6366f1; border-radius: 4px; min-width: 2px; }
-    .matrix-wrap { overflow-x: auto; }
-    .matrix-table { border-collapse: collapse; font-size: 13px; }
-    .matrix-table th, .matrix-table td { border: 1px solid #e4e4e7; padding: 7px 12px; text-align: center; white-space: nowrap; }
-    .matrix-table th { background: #f9f9fb; font-weight: 600; font-size: 12px; }
-    .matrix-table td.self { background: #f4f4f5; color: #aaa; }
-    .cell-high { background: rgba(34,197,94,0.12); color: #166534; }
-    .cell-low { background: rgba(239,68,68,0.08); color: #991b1b; }
-    .info-note { font-size: 13px; color: #7c3aed; margin-bottom: 1rem; background: #ede9fe; padding: 8px 12px; border-radius: 8px; }
-    .tourn-card { background: #fff; border-radius: 10px; border: 1px solid #e4e4e7; margin-bottom: 1rem; overflow: hidden; }
-    .tourn-card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1.25rem; background: #f9f9fb; border-bottom: 1px solid #e4e4e7; }
-    .tourn-card-header h3 { font-size: 15px; font-weight: 600; }
-    .tourn-date { font-size: 12px; color: #888; }
-    .tourn-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
-    .tourn-stat { padding: 0.75rem 1.25rem; border-right: 1px solid #f4f4f5; }
-    .tourn-stat:last-child { border-right: none; }
-    .tourn-stat .lbl { font-size: 11px; color: #888; margin-bottom: 2px; }
-    .tourn-stat .val { font-size: 16px; font-weight: 600; }
-    .tourn-teams { padding: 0.5rem 0; }
-    .tourn-team-row { display: flex; align-items: center; gap: 12px; padding: 6px 1.25rem; font-size: 14px; border-bottom: 1px solid #f9f9fb; }
-    .tourn-team-row:last-child { border-bottom: none; }
-    .tourn-team-name { flex: 1; font-weight: 500; }
-    .tourn-record { font-size: 13px; color: #666; min-width: 60px; }
-    .bracket-wrap { overflow-x: auto; padding-bottom: 1rem; }
-    .bracket { display: flex; gap: 0; align-items: flex-start; }
-    .bracket-round { display: flex; flex-direction: column; min-width: 170px; padding: 0 12px; border-left: 1px solid #e4e4e7; }
-    .bracket-round:first-child { border-left: none; padding-left: 0; }
-    .bracket-round-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #888; margin-bottom: 12px; text-align: center; }
-    .bracket-matchup { background: #f9f9fb; border: 1px solid #e4e4e7; border-radius: 8px; margin: 6px 0; overflow: hidden; }
-    .bracket-team { padding: 7px 10px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .bracket-team + .bracket-team { border-top: 1px solid #e4e4e7; }
-    .bracket-team.winner { background: #f0fdf4; font-weight: 600; color: #166534; }
-    .bracket-trophy { font-size: 20px; text-align: center; padding: 8px; }
-    .ratings-empty { text-align: center; padding: 3rem 1rem; color: #aaa; }
-    .ratings-empty p { font-size: 15px; color: #666; font-weight: 500; margin-bottom: 6px; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f4f4f5;color:#111;min-height:100vh;}
+    header{background:#1a1a2e;color:#fff;padding:0 2rem;display:flex;align-items:center;gap:14px;height:56px;}
+    header h1{font-size:18px;font-weight:600;white-space:nowrap;}
+    .save-ind{font-size:12px;padding:3px 10px;border-radius:20px;background:#2a6a3a;color:#7ef0a0;display:none;margin-left:auto;}
+    .save-ind.on{display:inline-block;}
+    .top-nav{background:#fff;border-bottom:1px solid #e4e4e7;display:flex;padding:0 2rem;}
+    .nav-btn{padding:0 18px;height:44px;font-size:14px;font-weight:500;cursor:pointer;border:none;background:none;color:#666;border-bottom:3px solid transparent;margin-bottom:-1px;}
+    .nav-btn:hover{color:#1a1a2e;}
+    .nav-btn.active{color:#1a1a2e;border-bottom-color:#6366f1;}
+    .app{display:flex;min-height:calc(100vh - 100px);}
+    .sidebar{width:240px;min-width:240px;background:#fff;border-right:1px solid #e4e4e7;display:flex;flex-direction:column;transition:width .2s,min-width .2s;overflow:hidden;}
+    .sidebar.col{width:44px;min-width:44px;}
+    .sidebar.col .sb-head h2,.sidebar.col .sb-body,.sidebar.col .sb-add{display:none;}
+    .sidebar.col .sb-head{justify-content:center;padding:.75rem 0;}
+    .sb-head{padding:.75rem 1rem;border-bottom:1px solid #e4e4e7;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .sb-head h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#888;white-space:nowrap;}
+    .tog-btn{background:none;border:none;cursor:pointer;color:#888;padding:4px;border-radius:4px;font-size:18px;line-height:1;display:flex;align-items:center;flex-shrink:0;}
+    .tog-btn:hover{background:#f4f4f5;}
+    .sb-body{flex:1;overflow-y:auto;}
+    .sb-add{padding:10px 12px;border-bottom:1px solid #e4e4e7;}
+    .sb-add input{width:100%;height:30px;padding:0 8px;border:1px solid #d4d4d8;border-radius:6px;font-size:13px;outline:none;margin-bottom:6px;}
+    .sb-add input:focus{border-color:#6366f1;}
+    .sb-add button{width:100%;height:30px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;}
+    .year-item{border-bottom:1px solid #f4f4f5;}
+    .year-header{display:flex;align-items:center;padding:9px 10px;cursor:pointer;font-size:13px;font-weight:600;color:#444;gap:6px;}
+    .year-header:hover{background:#f9f9fb;}
+    .year-chevron{font-size:10px;color:#aaa;transition:transform .15s;flex-shrink:0;}
+    .year-chevron.open{transform:rotate(90deg);}
+    .year-tournaments{display:none;}
+    .year-tournaments.open{display:block;}
+    .tourn-item{display:flex;align-items:center;gap:6px;padding:7px 10px 7px 24px;cursor:pointer;font-size:13px;color:#555;border-left:3px solid transparent;}
+    .tourn-item:hover{background:#f9f9fb;}
+    .tourn-item.active{background:#eff6ff;border-left-color:#6366f1;color:#1a1a2e;font-weight:500;}
+    .tourn-del{opacity:0;font-size:14px;color:#dc2626;cursor:pointer;margin-left:auto;flex-shrink:0;}
+    .tourn-item:hover .tourn-del{opacity:1;}
+    .year-del{opacity:0;font-size:14px;color:#dc2626;cursor:pointer;flex-shrink:0;}
+    .year-header:hover .year-del{opacity:1;}
+    .main{flex:1;padding:1.5rem;overflow-y:auto;min-width:0;}
+    .page{display:none;}
+    .page.active{display:block;}
+    .no-sel{display:flex;flex-direction:column;align-items:center;justify-content:center;height:50vh;color:#aaa;gap:8px;text-align:center;}
+    .no-sel p{font-size:15px;color:#666;font-weight:500;}
+    .card{background:#fff;border-radius:12px;border:1px solid #e4e4e7;padding:1.25rem 1.5rem;margin-bottom:1.25rem;}
+    .card h2{font-size:15px;font-weight:600;margin-bottom:1rem;color:#333;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;}
+    @media(max-width:700px){.grid{grid-template-columns:1fr;}}
+    label{font-size:12px;color:#666;display:block;margin-bottom:3px;margin-top:10px;}
+    input[type=text],input[type=date],input[type=password],select{width:100%;height:36px;padding:0 10px;border:1px solid #d4d4d8;border-radius:8px;font-size:14px;background:#fff;color:#111;outline:none;}
+    input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+    .btn{height:36px;padding:0 14px;border:1px solid #d4d4d8;border-radius:8px;background:#fff;color:#111;font-size:14px;cursor:pointer;white-space:nowrap;}
+    .btn:hover{background:#f4f4f5;}
+    .btn.pri{background:#1a1a2e;color:#fff;border-color:#1a1a2e;}
+    .btn.pri:hover{background:#2d2d4e;}
+    .btn.brk{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+    .btn.danger{color:#dc2626;border-color:#fca5a5;}
+    .btn.danger:hover{background:#fef2f2;}
+    .btn.sm{height:28px;padding:0 10px;font-size:13px;}
+    .row{display:flex;gap:8px;align-items:flex-end;margin-top:10px;}
+    .list-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f4f4f5;font-size:14px;}
+    .list-item:last-child{border-bottom:none;}
+    .list-item span{flex:1;}
+    .empty{font-size:13px;color:#aaa;padding:8px 0;}
+    .error{font-size:12px;color:#dc2626;margin-top:4px;}
+    .sec-div{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#aaa;padding:8px 0 4px;border-top:1px solid #f4f4f5;margin-top:8px;}
+    .badge{font-size:11px;font-weight:500;padding:2px 7px;border-radius:20px;}
+    .badge-pool{background:#e0f2fe;color:#0369a1;}
+    .badge-brk{background:#ede9fe;color:#5b21b6;}
+    .div-tabs{display:flex;gap:0;border-bottom:1px solid #e4e4e7;margin-bottom:1rem;flex-wrap:wrap;}
+    .div-tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px;}
+    .div-tab.active{color:#1a1a2e;border-bottom-color:#6366f1;font-weight:500;}
+    .tier-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:4px;}
+    .tier-1{background:#fef3c7;color:#92400e;}
+    .tier-2{background:#e0e7ff;color:#3730a3;}
+    .tier-3{background:#dcfce7;color:#166534;}
+    .tier-4{background:#f3f4f6;color:#374151;}
+    .tier-5{background:#fce7f3;color:#9d174d;}
+    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem;}
+    @media(max-width:600px){.metrics{grid-template-columns:1fr 1fr;}}
+    .metric{background:#fff;border-radius:10px;border:1px solid #e4e4e7;padding:1rem 1.25rem;}
+    .metric .lbl{font-size:12px;color:#666;margin-bottom:4px;}
+    .metric .val{font-size:22px;font-weight:600;}
+    .rtabs{display:flex;border-bottom:1px solid #e4e4e7;flex-wrap:wrap;background:#fff;border-radius:12px 12px 0 0;border:1px solid #e4e4e7;border-bottom:none;}
+    .rtab{padding:10px 18px;font-size:14px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px;}
+    .rtab.active{color:#1a1a2e;border-bottom-color:#6366f1;font-weight:500;}
+    .rpanel{display:none;background:#fff;border-radius:0 0 12px 12px;border:1px solid #e4e4e7;border-top:none;padding:1.5rem;}
+    .rpanel.active{display:block;}
+    .krach-table{width:100%;border-collapse:collapse;font-size:14px;}
+    .krach-table th{text-align:left;padding:8px 12px;border-bottom:1px solid #e4e4e7;font-size:12px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+    .krach-table td{padding:10px 12px;border-bottom:1px solid #f4f4f5;}
+    .krach-table tr:last-child td{border-bottom:none;}
+    .rank{display:inline-flex;width:26px;height:26px;border-radius:50%;background:#f4f4f5;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+    .rank.gold{background:#fef3c7;color:#92400e;}
+    .rank.silver{background:#f1f5f9;color:#475569;}
+    .rank.bronze{background:#fff7ed;color:#9a3412;}
+    .bar-wrap{display:flex;align-items:center;gap:8px;}
+    .bar{height:8px;background:#6366f1;border-radius:4px;min-width:2px;}
+    .matrix-wrap{overflow-x:auto;margin-top:1rem;}
+    .matrix-table{border-collapse:collapse;font-size:13px;}
+    .matrix-table th,.matrix-table td{border:1px solid #e4e4e7;padding:7px 12px;text-align:center;white-space:nowrap;}
+    .matrix-table th{background:#f9f9fb;font-weight:600;font-size:12px;}
+    .matrix-table td.self{background:#f4f4f5;color:#aaa;}
+    .cell-hi{background:rgba(34,197,94,.12);color:#166534;}
+    .cell-lo{background:rgba(239,68,68,.08);color:#991b1b;}
+    .info-note{font-size:13px;color:#7c3aed;margin-bottom:1rem;background:#ede9fe;padding:8px 12px;border-radius:8px;}
+    .div-section{background:#fff;border-radius:12px;border:1px solid #e4e4e7;margin-bottom:1.5rem;overflow:hidden;}
+    .div-section-hdr{padding:.875rem 1.5rem;border-bottom:1px solid #e4e4e7;display:flex;align-items:center;gap:8px;background:#f9f9fb;}
+    .div-section-hdr h3{font-size:15px;font-weight:600;}
+    .div-section-body{padding:1.5rem;}
   </style>
 </head>
 <body>
 
 <header>
-  <div class="header-logo">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-    <h1>KRACH Hockey Ratings</h1>
-  </div>
-  <div class="save-indicator" id="save-indicator">✓ Saved</div>
-  <button onclick="logout()" style="margin-left:8px;height:30px;padding:0 14px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;background:transparent;color:#ccc;font-size:13px;cursor:pointer;">Log out</button>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+  <h1>KRACH Hockey Ratings</h1>
+  <div class="save-ind" id="save-ind">✓ Saved</div>
+  <button onclick="logout()" style="margin-left:8px;height:30px;padding:0 14px;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:transparent;color:#ccc;font-size:13px;cursor:pointer;">Log out</button>
 </header>
 
 <nav class="top-nav">
-  <button class="nav-btn active" onclick="showPage('manage', this)">Manage</button>
-  <button class="nav-btn" onclick="showPage('ratings', this)">Ratings</button>
+  <button class="nav-btn active" onclick="showPage('manage',this)">Manage</button>
+  <button class="nav-btn" onclick="showPage('ratings',this)">Ratings</button>
+  <button class="nav-btn" onclick="showPage('teams-page',this)">Teams</button>
+  <button class="nav-btn" id="users-nav" style="display:none;" onclick="showPage('users-page',this)">Users</button>
 </nav>
 
 <div class="app">
   <div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <h2>Divisions</h2>
-      <button class="toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar">&#8249;</button>
+    <div class="sb-head">
+      <h2>Seasons</h2>
+      <button class="tog-btn" onclick="toggleSidebar()">&#8249;</button>
     </div>
-    <div class="sidebar-add">
-      <input type="text" id="new-division" placeholder="Division name" />
-      <button onclick="addDivision()">+ Add division</button>
-      <div class="error" id="div-error" style="margin-top:4px;"></div>
+    <div class="sb-add">
+      <input type="text" id="new-year" placeholder="e.g. 2024-2025"/>
+      <button onclick="addYear()">+ Add season</button>
+      <div class="error" id="year-error" style="margin-top:4px;"></div>
     </div>
-    <div class="division-list" id="division-list">
-      <div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>
-    </div>
+    <div class="sb-body" id="year-tree"></div>
   </div>
 
   <div class="main">
 
-    <!-- ══ MANAGE PAGE ══ -->
+    <!-- MANAGE -->
     <div class="page active" id="page-manage">
-      <div class="no-division" id="manage-no-div">
-        <p>No division selected</p>
-        <small>Add or select a division in the sidebar.</small>
+      <div class="no-sel" id="manage-empty">
+        <p>No tournament selected</p>
+        <small>Add a season in the sidebar, expand it, then select a tournament.</small>
       </div>
       <div id="manage-content" style="display:none;">
-        <div class="division-title">
-          <h2 id="manage-heading"></h2>
-          <span class="division-badge">Division</span>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-            <label style="font-size:12px;color:#666;margin:0;">Tier</label>
-            <select id="tier-select" onchange="updateTier()" style="width:auto;height:32px;font-size:13px;padding:0 8px;">
-              <option value="">— Unset —</option>
-              <option value="1">Tier 1</option>
-              <option value="2">Tier 2</option>
-              <option value="3">Tier 3</option>
-              <option value="4">Tier 4</option>
-              <option value="5">Tier 5</option>
-            </select>
-          </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;flex-wrap:wrap;">
+          <h2 id="manage-heading" style="font-size:20px;font-weight:600;"></h2>
+          <span style="font-size:11px;background:#eff6ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-weight:500;">Tournament</span>
+          <button class="btn pri" onclick="calculate()" style="margin-left:auto;">Calculate KRACH ratings</button>
         </div>
-
-        <!-- Teams + Tournament creation -->
-        <div class="grid">
-          <div class="card">
-            <h2>Teams</h2>
-            <div id="teams-list"><p class="empty">No teams yet.</p></div>
-            <div class="row" style="margin-top:12px;">
-              <input type="text" id="new-team" placeholder="Team name" />
-              <button class="btn" onclick="addTeam()">+ Add</button>
-            </div>
-            <div class="error" id="team-error"></div>
+        <div class="card">
+          <h2>Add a division</h2>
+          <div class="row">
+            <div style="flex:2;"><label>Division name</label><input type="text" id="new-div-name" placeholder="e.g. Tier 1 Open"/></div>
+            <div style="flex:1;"><label>Tier</label><select id="new-div-tier"><option value="">— None —</option><option value="1">Tier 1</option><option value="2">Tier 2</option><option value="3">Tier 3</option><option value="4">Tier 4</option><option value="5">Tier 5</option></select></div>
+            <div style="align-self:flex-end;"><button class="btn pri" onclick="addDivision()">+ Add</button></div>
           </div>
+          <div class="error" id="div-error"></div>
+        </div>
+        <div id="div-tabs-wrap" style="display:none;">
+          <div class="div-tabs" id="div-tabs"></div>
+          <div id="div-panels"></div>
+        </div>
+        <div id="no-div-msg" class="empty" style="padding:1rem 0;">No divisions yet — add one above.</div>
+      </div>
+    </div>
 
-          <div class="card">
-            <h2>Tournaments</h2>
-            <div id="tournaments-list"><p class="empty">No tournaments yet.</p></div>
-            <div style="margin-top:12px;">
-              <label>Tournament name</label>
-              <input type="text" id="new-tourn-name" placeholder="e.g. Spring Classic" />
-              <label>Date</label>
-              <input type="date" id="new-tourn-date" />
-              <label>Tournament type</label>
-              <select id="new-tourn-type" onchange="toggleCrossTierForm()">
-                <option value="division">Division tournament</option>
-                <option value="cross">Cross-tier tournament</option>
-              </select>
-              <div id="cross-tier-form" style="display:none;">
-                <label>Tier A</label>
-                <select id="new-tourn-tier-a">
-                  <option value="1">Tier 1</option>
-                  <option value="2">Tier 2</option>
-                  <option value="3">Tier 3</option>
-                  <option value="4">Tier 4</option>
-                </select>
-                <label>Tier B (must be adjacent)</label>
-                <select id="new-tourn-tier-b">
-                  <option value="2">Tier 2</option>
-                  <option value="3">Tier 3</option>
-                  <option value="4">Tier 4</option>
-                  <option value="5">Tier 5</option>
-                </select>
-              </div>
-              <div class="row" style="margin-top:8px;">
-                <button class="btn tournament" onclick="addTournament()" style="width:100%;">+ Add tournament</button>
-              </div>
-            </div>
-            <div class="error" id="tourn-error"></div>
+    <!-- RATINGS -->
+    <div class="page" id="page-ratings">
+      <div class="no-sel" id="ratings-empty"><p>No tournament selected</p><small>Select a tournament to view ratings.</small></div>
+      <div id="ratings-content" style="display:none;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap;">
+          <h2 id="ratings-heading" style="font-size:20px;font-weight:600;"></h2>
+        </div>
+        <div id="ratings-placeholder" style="text-align:center;padding:3rem;color:#aaa;"><p style="font-size:15px;color:#666;font-weight:500;">Click "Calculate KRACH ratings" on the Manage tab to generate standings.</p></div>
+        <div id="ratings-results" style="display:none;">
+          <div class="metrics" id="metrics"></div>
+          <div class="rtabs">
+            <button class="rtab active" onclick="showRTab('per-div',this)">Per division</button>
+            <button class="rtab" onclick="showRTab('combined',this)">Season-long combined</button>
           </div>
-        </div>
-
-        <!-- Tournament selector + game logging -->
-        <div class="tourn-selector">
-          <label>Active tournament — logging games for:</label>
-          <select id="active-tournament" style="margin-top:6px;" onchange="renderGameLog()">
-            <option value="">— Select a tournament —</option>
-          </select>
-        </div>
-
-        <div class="card card-full" id="game-log-card" style="display:none;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
-            <h2 style="margin:0;">Log a game result</h2>
-            <span class="tourn-badge" id="active-tourn-label"></span>
-          </div>
-          <div class="grid" style="margin-bottom:0;">
-            <div>
-              <label>Phase</label>
-              <select id="game-phase" onchange="togglePhase()">
-                <option value="pool">Pool play</option>
-                <option value="bracket">Bracket / elimination</option>
-              </select>
-              <label>Winner</label>
-              <select id="winner-sel"></select>
-              <label>Loser</label>
-              <select id="loser-sel"></select>
-              <label>Result type</label>
-              <select id="result-type">
-                <option value="W">Win (regulation)</option>
-                <option value="OTW">Win (OT / shootout)</option>
-                <option value="T">Tie</option>
-              </select>
-              <div style="margin-top:12px;">
-                <button class="btn primary" id="log-btn" onclick="addGame()">+ Log pool play game</button>
-              </div>
-              <div class="error" id="game-error"></div>
-            </div>
-            <div>
-              <p style="font-size:13px;color:#0369a1;background:#e0f2fe;padding:10px 12px;border-radius:8px;margin-top:10px;">
-                <strong>Pool play</strong> games count at normal weight.<br><br>
-                <strong>Bracket</strong> games count at <strong>2x</strong> weight in KRACH.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Game log -->
-        <div class="card card-full">
-          <h2>Game log <span id="game-count" style="font-weight:400;color:#888;font-size:13px;"></span></h2>
-          <div id="games-list"><p class="empty">No games logged yet.</p></div>
-        </div>
-
-        <div class="calc-bar">
-          <button class="btn danger" onclick="clearDivisionData()">Clear all division data</button>
+          <div class="rpanel active" id="rtab-per-div"></div>
+          <div class="rpanel" id="rtab-combined"></div>
         </div>
       </div>
     </div>
 
-    <!-- ══ RATINGS PAGE ══ -->
-    <div class="page" id="page-ratings">
-      <div class="no-division" id="ratings-no-div">
-        <p>No division selected</p>
-        <small>Select a division in the sidebar to view ratings.</small>
+    <!-- TEAMS -->
+    <div class="page" id="page-teams-page">
+      <div class="card" style="max-width:500px;">
+        <h2>Global team roster</h2>
+        <p style="font-size:13px;color:#888;margin-bottom:1rem;">Teams here can be assigned to any division in any tournament.</p>
+        <div id="all-teams-list"><p class="empty">No teams yet.</p></div>
+        <div class="row" style="margin-top:12px;">
+          <input type="text" id="new-global-team" placeholder="Team name"/>
+          <button class="btn pri" onclick="addGlobalTeam()">+ Add</button>
+        </div>
+        <div class="error" id="global-team-error"></div>
       </div>
-      <div id="ratings-content" style="display:none;">
-        <div class="division-title">
-          <h2 id="ratings-heading"></h2>
-          <span class="division-badge">Division</span>
-          <button class="btn primary" onclick="calculate()" style="margin-left:auto;">Calculate KRACH ratings</button>
-        </div>
+    </div>
 
-        <div id="ratings-empty-state" class="ratings-empty">
-          <p>No ratings calculated yet</p>
-          <small>Click "Calculate KRACH ratings" above to generate standings.</small>
-        </div>
-
-        <div id="ratings-results" style="display:none;">
-          <div class="metrics" id="metrics"></div>
-          <div class="ratings-tabs">
-            <button class="ratings-tab active" onclick="showRatingsTab('rankings',this)">Rankings</button>
-            <button class="ratings-tab" onclick="showRatingsTab('matrix',this)">Expected win % matrix</button>
-            <button class="ratings-tab" onclick="showRatingsTab('tournaments',this)">Tournaments</button>
+    <!-- USERS -->
+    <div class="page" id="page-users-page">
+      <div style="max-width:600px;">
+        <div class="card">
+          <h2>Add a user</h2>
+          <div class="grid" style="margin-bottom:0;">
+            <div><label>Username</label><input type="text" id="new-user-un" placeholder="Username"/><label>Password</label><input type="password" id="new-user-pw" placeholder="Password"/></div>
+            <div><label>Role</label><select id="new-user-role"><option value="editor">Editor</option><option value="viewer">Viewer</option></select><div style="margin-top:28px;"><button class="btn pri" onclick="addUser()" style="width:100%;">+ Add user</button></div></div>
           </div>
-          <div class="ratings-body">
-            <div class="ratings-panel active" id="rtab-rankings"></div>
-            <div class="ratings-panel" id="rtab-matrix"></div>
-            <div class="ratings-panel" id="rtab-tournaments"></div>
-          </div>
+          <div class="error" id="user-error" style="margin-top:8px;"></div>
         </div>
+        <div class="card"><h2>Existing users</h2><p style="font-size:13px;color:#888;margin-bottom:1rem;">Super admin from .env is not listed here.</p><div id="users-list"><p class="empty">No users yet.</p></div></div>
       </div>
     </div>
 
@@ -337,551 +235,421 @@
 </div>
 
 <script>
-  const API = window.location.origin + '/api';
-  let divisions = [], activeDivisionId = null, activeDivisionName = '';
-  let teams = [], games = [], tournaments = [];
+const API = window.location.origin + '/api';
+let years = [], allTeams = [], currentRole = 'viewer';
+let activeTournId = null, activeTournName = '', activeDivisions = [];
 
-  function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const btn = sidebar.querySelector('.toggle-btn');
-    sidebar.classList.toggle('collapsed');
-    btn.innerHTML = sidebar.classList.contains('collapsed') ? '&#8250;' : '&#8249;';
-    btn.title = sidebar.classList.contains('collapsed') ? 'Expand sidebar' : 'Collapse sidebar';
-  }
+async function api(method, path, body) {
+  const res = await fetch(API + path, {method, headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  return res.json();
+}
 
-  function showPage(name, btn) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('page-' + name).classList.add('active');
-    btn.classList.add('active');
-  }
+function flash() { const e=document.getElementById('save-ind'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'),2000); }
 
-  async function apiCall(method, path, body) {
-    const res = await fetch(API + path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    return res.json();
-  }
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name==='teams-page') loadAllTeams();
+  if (name==='users-page') loadUsers();
+}
 
-  function flashSaved() {
-    const el = document.getElementById('save-indicator');
-    el.classList.add('visible');
-    setTimeout(() => el.classList.remove('visible'), 2000);
-  }
+function toggleSidebar() {
+  const sb=document.getElementById('sidebar'), btn=sb.querySelector('.tog-btn');
+  sb.classList.toggle('col');
+  btn.innerHTML = sb.classList.contains('col') ? '&#8250;' : '&#8249;';
+}
 
-  async function logout() {
-    await fetch('/api/auth/logout', { method: 'DELETE' });
-    window.location.href = '/login';
-  }
+async function logout() { await fetch('/api/auth/logout',{method:'DELETE'}); window.location.href='/login'; }
 
-  // ── Divisions ──
+async function init() {
+  const me = await api('GET','/me');
+  currentRole = me.role || 'viewer';
+  document.getElementById('users-nav').style.display = currentRole==='superadmin' ? 'inline-block' : 'none';
+  await loadYears();
+  await loadAllTeams();
+}
 
-  async function loadDivisions() {
-    divisions = await apiCall('GET', '/divisions');
-    renderDivisions();
-  }
+// ── Years ──────────────────────────────────────────────────────────────────
+async function loadYears() {
+  years = await api('GET','/years');
+  renderYearTree();
+}
 
-  async function addDivision() {
-    const inp = document.getElementById('new-division');
-    const name = inp.value.trim();
-    document.getElementById('div-error').textContent = '';
-    if (!name) return;
-    const res = await apiCall('POST', '/divisions', { name });
-    if (res.error) { document.getElementById('div-error').textContent = res.error; return; }
-    inp.value = '';
-    await loadDivisions();
-    selectDivision(res.id, res.name);
-    flashSaved();
-  }
+async function addYear() {
+  const inp=document.getElementById('new-year'), name=inp.value.trim();
+  document.getElementById('year-error').textContent='';
+  if (!name) return;
+  const res=await api('POST','/years',{name});
+  if (res.error){document.getElementById('year-error').textContent=res.error;return;}
+  inp.value=''; await loadYears(); flash();
+}
+document.getElementById('new-year').addEventListener('keydown',e=>{if(e.key==='Enter')addYear();});
 
-  document.getElementById('new-division').addEventListener('keydown', e => { if (e.key === 'Enter') addDivision(); });
+async function deleteYear(id,name,e) {
+  e.stopPropagation();
+  if (!confirm(`Delete season "${name}" and all its data?`)) return;
+  await api('DELETE','/years',{id});
+  if (activeTournId) { activeTournId=null; showNoTournament(); }
+  await loadYears(); flash();
+}
 
-  async function deleteDivision(id, name, e) {
-    e.stopPropagation();
-    if (!confirm(`Delete division "${name}" and all its data?`)) return;
-    await apiCall('DELETE', '/divisions', { id });
-    if (activeDivisionId === id) { activeDivisionId = null; activeDivisionName = ''; showNoDivision(); }
-    await loadDivisions();
-    flashSaved();
-  }
+function showNoTournament() {
+  document.getElementById('manage-empty').style.display='flex';
+  document.getElementById('manage-content').style.display='none';
+  document.getElementById('ratings-empty').style.display='flex';
+  document.getElementById('ratings-content').style.display='none';
+}
 
-  function showNoDivision() {
-    document.getElementById('manage-no-div').style.display = 'flex';
-    document.getElementById('manage-content').style.display = 'none';
-    document.getElementById('ratings-no-div').style.display = 'flex';
-    document.getElementById('ratings-content').style.display = 'none';
-  }
-
-  function renderDivisions() {
-    const el = document.getElementById('division-list');
-    if (!divisions.length) { el.innerHTML = '<div style="padding:12px;font-size:13px;color:#bbb;">No divisions yet.</div>'; return; }
-    el.innerHTML = divisions.map(d => `
-      <div class="division-item ${d.id === activeDivisionId ? 'active' : ''}" onclick="selectDivision(${d.id}, '${d.name.replace(/'/g,"\\'")}')">
-        <span class="div-name">${d.name}</span>
-        ${d.tier ? `<span style="font-size:10px;font-weight:600;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;margin-right:2px;">T${d.tier}</span>` : ''}
-        <span class="del-div" onclick="deleteDivision(${d.id}, '${d.name.replace(/'/g,"\\'")}', event)">×</span>
+function renderYearTree() {
+  const el=document.getElementById('year-tree');
+  if (!years.length){el.innerHTML='<div style="padding:12px;font-size:13px;color:#bbb;">No seasons yet.</div>';return;}
+  el.innerHTML=years.map(y=>`
+    <div class="year-item">
+      <div class="year-header" onclick="toggleYear(${y.id},this)">
+        <span class="year-chevron" id="chev-${y.id}">▶</span>
+        <span style="flex:1;">${y.name}</span>
+        ${currentRole!=='viewer'?`<span class="year-del" onclick="deleteYear(${y.id},'${y.name.replace(/'/g,"\\'")}',event)">×</span>`:''}
       </div>
-    `).join('');
+      <div class="year-tournaments" id="yt-${y.id}"></div>
+    </div>`).join('');
+}
+
+async function toggleYear(yearId, hdr) {
+  const panel=document.getElementById(`yt-${yearId}`), chev=document.getElementById(`chev-${yearId}`);
+  if (panel.classList.contains('open')){ panel.classList.remove('open'); chev.classList.remove('open'); return; }
+  const tournaments = await api('GET',`/year?year_id=${yearId}`);
+  panel.innerHTML = tournaments.map(t=>`
+    <div class="tourn-item ${t.id===activeTournId?'active':''}" id="ti-${t.id}" onclick="selectTournament(${yearId},${t.id},'${t.name.replace(/'/g,"\\'")}')">
+      <span style="flex:1;">${t.name}${t.date?` <span style="font-size:11px;color:#aaa;">${t.date}</span>`:''}</span>
+      ${currentRole!=='viewer'?`<span class="tourn-del" onclick="deleteTournament(${yearId},${t.id},'${t.name.replace(/'/g,"\\'")}',event)">×</span>`:''}
+    </div>`).join('') + (currentRole!=='viewer'?`
+    <div style="padding:8px 10px 10px 22px;">
+      <input type="text" id="nt-n-${yearId}" placeholder="Tournament name" style="height:28px;font-size:12px;margin-bottom:4px;"/>
+      <input type="date" id="nt-d-${yearId}" style="height:28px;font-size:12px;margin-bottom:4px;"/>
+      <button class="btn pri" style="width:100%;height:28px;font-size:12px;" onclick="addTournament(${yearId})">+ Add tournament</button>
+      <div class="error" id="te-${yearId}" style="margin-top:4px;"></div>
+    </div>`:'');
+  panel.classList.add('open'); chev.classList.add('open');
+}
+
+async function addTournament(yearId) {
+  const name=document.getElementById(`nt-n-${yearId}`).value.trim();
+  const date=document.getElementById(`nt-d-${yearId}`).value||null;
+  const errEl=document.getElementById(`te-${yearId}`);
+  errEl.textContent=''; if (!name) return;
+  const res=await api('POST','/tournaments',{year_id:yearId,name,date});
+  if (res.error){errEl.textContent=res.error;return;}
+  const panel=document.getElementById(`yt-${yearId}`), chev=document.getElementById(`chev-${yearId}`);
+  panel.classList.remove('open'); chev.classList.remove('open');
+  await toggleYear(yearId,null); flash();
+}
+
+async function deleteTournament(yearId,id,name,e) {
+  e.stopPropagation();
+  if (!confirm(`Delete tournament "${name}"?`)) return;
+  await api('DELETE','/tournaments',{id});
+  if (activeTournId===id) { activeTournId=null; showNoTournament(); }
+  const panel=document.getElementById(`yt-${yearId}`), chev=document.getElementById(`chev-${yearId}`);
+  panel.classList.remove('open'); chev.classList.remove('open');
+  await toggleYear(yearId,null); flash();
+}
+
+// ── Select Tournament ───────────────────────────────────────────────────────
+async function selectTournament(yearId,tournId,tournName) {
+  activeTournId=tournId; activeTournName=tournName;
+  document.querySelectorAll('.tourn-item').forEach(el=>el.classList.remove('active'));
+  const ti=document.getElementById(`ti-${tournId}`); if (ti) ti.classList.add('active');
+  const tournaments=await api('GET',`/year?year_id=${yearId}`);
+  const t=tournaments.find(t=>t.id===tournId);
+  activeDivisions=t?t.divisions:[];
+  document.getElementById('manage-empty').style.display='none';
+  document.getElementById('manage-content').style.display='block';
+  document.getElementById('manage-heading').textContent=tournName;
+  document.getElementById('ratings-empty').style.display='none';
+  document.getElementById('ratings-content').style.display='block';
+  document.getElementById('ratings-heading').textContent=tournName;
+  document.getElementById('ratings-results').style.display='none';
+  document.getElementById('ratings-placeholder').style.display='block';
+  renderManage();
+}
+
+// ── Divisions ───────────────────────────────────────────────────────────────
+async function addDivision() {
+  const name=document.getElementById('new-div-name').value.trim();
+  const tier=document.getElementById('new-div-tier').value||null;
+  document.getElementById('div-error').textContent='';
+  if (!name) return;
+  const res=await api('POST','/divisions',{tournament_id:activeTournId,name,tier});
+  if (res.error){document.getElementById('div-error').textContent=res.error;return;}
+  document.getElementById('new-div-name').value='';
+  await refreshTournament(); flash();
+}
+
+async function deleteDiv(divId,name) {
+  if (!confirm(`Delete division "${name}"?`)) return;
+  await api('DELETE','/divisions',{id:divId}); await refreshTournament(); flash();
+}
+
+async function refreshTournament() {
+  const years2=await api('GET','/years');
+  for (const y of years2){
+    const ts=await api('GET',`/year?year_id=${y.id}`);
+    const t=ts.find(t=>t.id===activeTournId);
+    if (t){activeDivisions=t.divisions;break;}
   }
+  renderManage();
+}
 
-  async function selectDivision(id, name) {
-    activeDivisionId = id; activeDivisionName = name;
-    document.getElementById('manage-no-div').style.display = 'none';
-    document.getElementById('manage-content').style.display = 'block';
-    document.getElementById('manage-heading').textContent = name;
-    const div = divisions.find(d => d.id === id);
-    document.getElementById('tier-select').value = div && div.tier ? div.tier : '';
-    document.getElementById('ratings-no-div').style.display = 'none';
-    document.getElementById('ratings-content').style.display = 'block';
-    document.getElementById('ratings-heading').textContent = name;
-    document.getElementById('ratings-results').style.display = 'none';
-    document.getElementById('ratings-empty-state').style.display = 'block';
-    renderDivisions();
-    await loadDivisionData();
-  }
+function renderManage() {
+  const divs=activeDivisions;
+  const wrap=document.getElementById('div-tabs-wrap'), noDiv=document.getElementById('no-div-msg');
+  if (!divs.length){wrap.style.display='none';noDiv.style.display='block';return;}
+  wrap.style.display='block'; noDiv.style.display='none';
+  document.getElementById('div-tabs').innerHTML=divs.map((d,i)=>
+    `<button class="div-tab ${i===0?'active':''}" onclick="showDivPanel(${d.id},this)">${d.name}${d.tier?`<span class="tier-badge tier-${d.tier}">T${d.tier}</span>`:''}</button>`
+  ).join('');
+  document.getElementById('div-panels').innerHTML=divs.map((d,i)=>
+    `<div id="dp-${d.id}" style="${i===0?'':'display:none'}">${buildDivPanel(d)}</div>`
+  ).join('');
+}
 
-  // ── Data ──
+function showDivPanel(divId,btn) {
+  document.querySelectorAll('.div-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('[id^="dp-"]').forEach(p=>p.style.display='none');
+  btn.classList.add('active');
+  document.getElementById(`dp-${divId}`).style.display='block';
+}
 
-  async function updateTier() {
-    const tier = document.getElementById('tier-select').value;
-    await apiCall('POST', '/divisions/tier', { id: activeDivisionId, tier: tier || null });
-    await loadDivisions();
-    flashSaved();
-  }
-
-  async function loadDivisionData() {
-    if (!activeDivisionId) return;
-    const data = await apiCall('GET', `/data?division_id=${activeDivisionId}`);
-    teams = data.teams || [];
-    games = data.games || [];
-    tournaments = data.tournaments || [];
-    render();
-  }
-
-  // ── Teams ──
-
-  async function addTeam() {
-    const inp = document.getElementById('new-team');
-    const name = inp.value.trim();
-    document.getElementById('team-error').textContent = '';
-    if (!name) return;
-    const res = await apiCall('POST', '/teams', { name, division_id: activeDivisionId });
-    if (res.error) { document.getElementById('team-error').textContent = res.error; return; }
-    teams = res.teams; games = res.games; tournaments = res.tournaments;
-    inp.value = '';
-    render();
-    flashSaved();
-  }
-
-  document.getElementById('new-team').addEventListener('keydown', e => { if (e.key === 'Enter') addTeam(); });
-
-  async function removeTeam(name) {
-    await apiCall('DELETE', '/teams', { name, division_id: activeDivisionId });
-    await loadDivisionData();
-    flashSaved();
-  }
-
-  // ── Tournaments ──
-
-  function toggleCrossTierForm() {
-    const isCross = document.getElementById('new-tourn-type').value === 'cross';
-    document.getElementById('cross-tier-form').style.display = isCross ? 'block' : 'none';
-    // Auto-set tier B to tier A + 1
-    if (isCross) {
-      const tierA = parseInt(document.getElementById('new-tourn-tier-a').value);
-      document.getElementById('new-tourn-tier-b').value = tierA + 1;
-    }
-  }
-
-  async function addTournament() {
-    const name = document.getElementById('new-tourn-name').value.trim();
-    const date = document.getElementById('new-tourn-date').value || null;
-    const isCross = document.getElementById('new-tourn-type').value === 'cross';
-    document.getElementById('tourn-error').textContent = '';
-    if (!name) return;
-    let payload = { name, date };
-    if (isCross) {
-      const tier_a = parseInt(document.getElementById('new-tourn-tier-a').value);
-      const tier_b = parseInt(document.getElementById('new-tourn-tier-b').value);
-      if (Math.abs(tier_a - tier_b) !== 1) {
-        document.getElementById('tourn-error').textContent = 'Tiers must be adjacent (e.g. Tier 1 & Tier 2).';
-        return;
-      }
-      payload = { ...payload, cross_tier: true, tier_a, tier_b };
-    } else {
-      payload = { ...payload, division_id: activeDivisionId };
-    }
-    const res = await apiCall('POST', '/tournaments', payload);
-    if (res.error) { document.getElementById('tourn-error').textContent = res.error; return; }
-    teams = res.teams; games = res.games; tournaments = res.tournaments;
-    document.getElementById('new-tourn-name').value = '';
-    document.getElementById('new-tourn-date').value = '';
-    document.getElementById('new-tourn-type').value = 'division';
-    document.getElementById('cross-tier-form').style.display = 'none';
-    render();
-    flashSaved();
-  }
-
-  async function deleteTournament(id, name, e) {
-    e.stopPropagation();
-    if (!confirm(`Delete tournament "${name}"? Its games will also be deleted.`)) return;
-    await apiCall('DELETE', '/tournaments', { id, division_id: activeDivisionId });
-    await loadDivisionData();
-    flashSaved();
-  }
-
-  // ── Games ──
-
-  let crossTierTeams = [];
-
-  async function loadCrossTierTeams(tier_a, tier_b, tid) {
-    const res = await apiCall('GET', `/cross-tier-teams?tier_a=${tier_a}&tier_b=${tier_b}`);
-    crossTierTeams = Array.isArray(res) ? res : [];
-    populateTeamSelects(crossTierTeams.map(t => t.name), crossTierTeams);
-    // Store division info on selects for game logging
-    document.getElementById('winner-sel').dataset.crossTier = '1';
-    document.getElementById('loser-sel').dataset.crossTier = '1';
-  }
-
-  function populateTeamSelects(teamNames, crossTierData) {
-    ['winner-sel','loser-sel'].forEach((id, i) => {
-      const sel = document.getElementById(id);
-      const cur = sel.value;
-      if (crossTierData && crossTierData.length) {
-        // Group by tier
-        const byTier = {};
-        crossTierData.forEach(t => {
-          if (!byTier[t.tier]) byTier[t.tier] = [];
-          byTier[t.tier].push(t);
-        });
-        sel.innerHTML = Object.entries(byTier).map(([tier, tierTeams]) =>
-          `<optgroup label="Tier ${tier}">${tierTeams.map(t => `<option value="${t.name}" data-div="${t.division_id}">${t.name}</option>`).join('')}</optgroup>`
-        ).join('');
-      } else {
-        sel.innerHTML = teamNames.map(t => `<option>${t}</option>`).join('');
-        delete sel.dataset.crossTier;
-      }
-      if (teamNames.includes(cur)) sel.value = cur;
-      else if (i === 1 && teamNames.length > 1) sel.selectedIndex = 1;
-    });
-  }
-
-  function togglePhase() {
-    const isPool = document.getElementById('game-phase').value === 'pool';
-    document.getElementById('log-btn').textContent = isPool ? '+ Log pool play game' : '+ Log bracket game';
-    document.getElementById('log-btn').className = 'btn ' + (isPool ? 'primary' : 'tournament');
-    const tieOpt = document.querySelector('#result-type option[value="T"]');
-    tieOpt.disabled = !isPool;
-    if (!isPool && document.getElementById('result-type').value === 'T') document.getElementById('result-type').value = 'W';
-  }
-
-  async function addGame() {
-    const tSel = document.getElementById('active-tournament');
-    const tournament_id = tSel.value ? parseInt(tSel.value) : null;
-    const winnerSel = document.getElementById('winner-sel');
-    const loserSel = document.getElementById('loser-sel');
-    const winner = winnerSel.value;
-    const loser = loserSel.value;
-    const type = document.getElementById('result-type').value;
-    const phase = document.getElementById('game-phase').value;
-    document.getElementById('game-error').textContent = '';
-    if (!tournament_id) { document.getElementById('game-error').textContent = 'Select a tournament first.'; return; }
-    if (!winner || !loser) { document.getElementById('game-error').textContent = 'Select two teams.'; return; }
-    if (winner === loser) { document.getElementById('game-error').textContent = 'Teams must be different.'; return; }
-
-    const t = tournaments.find(t => t.id === tournament_id);
-    let payload = { tournament_id, winner, loser, type, phase };
-    if (t && t.cross_tier) {
-      const winnerOpt = winnerSel.querySelector(`option[value="${winner}"]`);
-      const loserOpt = loserSel.querySelector(`option[value="${loser}"]`);
-      payload.cross_tier = true;
-      payload.winner_division_id = winnerOpt ? parseInt(winnerOpt.dataset.div) : null;
-      payload.loser_division_id = loserOpt ? parseInt(loserOpt.dataset.div) : null;
-    } else {
-      payload.division_id = activeDivisionId;
-    }
-    const res = await apiCall('POST', '/games', payload);
-    if (res.error) { document.getElementById('game-error').textContent = res.error; return; }
-    teams = res.teams; games = res.games; tournaments = res.tournaments;
-    render();
-    flashSaved();
-  }
-
-  async function removeGame(id) {
-    await apiCall('DELETE', '/games', { id, division_id: activeDivisionId });
-    await loadDivisionData();
-    flashSaved();
-  }
-
-  async function clearDivisionData() {
-    if (!confirm('Clear all teams, tournaments and games in this division?')) return;
-    await apiCall('DELETE', '/all', { division_id: activeDivisionId });
-    await loadDivisionData();
-    document.getElementById('ratings-results').style.display = 'none';
-    document.getElementById('ratings-empty-state').style.display = 'block';
-    flashSaved();
-  }
-
-  function renderGameLog() {
-    const tSel = document.getElementById('active-tournament');
-    const tid = tSel.value ? parseInt(tSel.value) : null;
-    const label = document.getElementById('active-tourn-label');
-    const card = document.getElementById('game-log-card');
-
-    if (tid) {
-      const t = tournaments.find(t => t.id === tid);
-      label.textContent = t ? t.name : '';
-      card.style.display = 'block';
-      // Load cross-tier teams if needed
-      if (t && t.cross_tier) {
-        loadCrossTierTeams(t.tier_a, t.tier_b, tid);
-      } else {
-        populateTeamSelects(teams, null);
-      }
-    } else {
-      card.style.display = 'none';
-    }
-
-    const gEl = document.getElementById('games-list');
-    const filteredGames = tid ? games.filter(g => g.tournament_id === tid) : games;
-    document.getElementById('game-count').textContent = games.length ? `(${games.length} total)` : '';
-
-    if (!filteredGames.length) { gEl.innerHTML = '<p class="empty">No games logged yet.</p>'; return; }
-
-    const pool = filteredGames.filter(g => g.phase === 'pool');
-    const bracket = filteredGames.filter(g => g.phase === 'bracket');
-    let html = '';
-    if (pool.length) {
-      html += `<div class="section-divider">Pool play (${pool.length})</div>`;
-      html += pool.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
-    }
-    if (bracket.length) {
-      html += `<div class="section-divider">Bracket (${bracket.length})</div>`;
-      html += bracket.map(g => `<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} ${typeBadge(g)}</span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');
-    }
-    gEl.innerHTML = html;
-  }
-
-  function typeBadge(g) {
-    const crossLabel = g.cross_tier ? ' <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px;">Cross-tier</span>' : '';
-    if (g.phase === 'bracket') {
-      const cls = g.type === 'OTW' ? 'badge-bracket-ot' : 'badge-bracket';
-      return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Bracket OT' : 'Bracket'}</span>${crossLabel}`;
-    }
-    const cls = g.type === 'OTW' ? 'badge-pool-ot' : 'badge-pool';
-    return `<span class="game-type ${cls}">${g.type === 'OTW' ? 'Pool OT' : g.type === 'T' ? 'Pool Tie' : 'Pool'}</span>${crossLabel}`;
-  }
-
-  function render() {
-    // Teams
-    document.getElementById('teams-list').innerHTML = teams.length === 0
-      ? '<p class="empty">No teams yet.</p>'
-      : teams.map(t => `<div class="list-item"><span>${t}</span><button class="btn sm danger" onclick="removeTeam('${t.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
-
-    // Tournaments list
-    document.getElementById('tournaments-list').innerHTML = tournaments.length === 0
-      ? '<p class="empty">No tournaments yet.</p>'
-      : tournaments.map(t => `<div class="list-item"><span><strong>${t.name}</strong>${t.date ? ' <span style="color:#888;font-size:12px;">'+t.date+'</span>' : ''}${t.cross_tier ? ' <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:10px;">Tier '+t.tier_a+' vs Tier '+t.tier_b+'</span>' : ''}</span><button class="btn sm danger" onclick="deleteTournament(${t.id}, '${t.name.replace(/'/g,"\\'")}', event)">Remove</button></div>`).join('');
-
-    // Tournament selector
-    const tSel = document.getElementById('active-tournament');
-    const curVal = tSel.value;
-    tSel.innerHTML = '<option value="">— Select a tournament —</option>' +
-      tournaments.map(t => `<option value="${t.id}">${t.name}${t.date ? ' ('+t.date+')' : ''}</option>`).join('');
-    if (curVal && tournaments.find(t => t.id == curVal)) tSel.value = curVal;
-
-    // Team selects
-    populateTeamSelects(teams, null);
-
-    renderGameLog();
-  }
-
-  // ── KRACH ──
-
-  const BRACKET_WEIGHT = 2;
-
-  function calculate() {
-    if (!activeDivisionId) { alert('Select a division first.'); return; }
-    if (teams.length < 2) { alert('Add at least 2 teams first.'); return; }
-    if (games.length === 0) { alert('Log at least one game first.'); return; }
-
-    const stats = {};
-    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0, pool_w: 0, pool_l: 0, bracket_w: 0, bracket_l: 0 }; });
-    games.forEach(g => {
-      stats[g.winner].gp++; stats[g.loser].gp++;
-      if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
-      else { stats[g.winner].wins++; stats[g.loser].losses++; }
-      if (g.phase === 'pool') { stats[g.winner].pool_w++; stats[g.loser].pool_l++; }
-      else { stats[g.winner].bracket_w++; stats[g.loser].bracket_l++; }
-    });
-
-    const krach = computeKRACH(teams, games);
-    const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
-    const maxK = Math.max(...Object.values(krach));
-    const poolGames = games.filter(g => g.phase === 'pool');
-    const bracketGames = games.filter(g => g.phase === 'bracket');
-
-    document.getElementById('metrics').innerHTML = `
-      <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-      <div class="metric"><div class="lbl">Tournaments</div><div class="val">${tournaments.length}</div></div>
-      <div class="metric"><div class="lbl">Pool games</div><div class="val">${poolGames.length}</div></div>
-      <div class="metric"><div class="lbl">Bracket games</div><div class="val">${bracketGames.length}</div></div>
-    `;
-
-    const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    document.getElementById('rtab-rankings').innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px;">
-        <p class="info-note" style="margin:0;flex:1;">Bracket games count as <strong>2x</strong> in the KRACH calculation.</p>
-        <button class="btn sm" onclick="downloadCSV()">&#8615; Download CSV</button>
+function buildDivPanel(d) {
+  const teams=d.teams||[], games=d.games||[];
+  const avail=allTeams.filter(t=>!teams.includes(t));
+  const teamHTML=!teams.length?'<p class="empty">No teams assigned.</p>':teams.map(t=>`<div class="list-item"><span>${t}</span><button class="btn sm danger" onclick="removeTeamFromDiv(${d.id},'${t.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
+  const pool=games.filter(g=>g.phase==='pool'), brkt=games.filter(g=>g.phase==='bracket');
+  let gHTML='';
+  if(pool.length){gHTML+=`<div class="sec-div">Pool play (${pool.length})</div>`;gHTML+=pool.map(g=>`<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} <span class="badge badge-pool">${g.type==='T'?'Tie':g.type==='OTW'?'OT':'Reg'}</span></span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');}
+  if(brkt.length){gHTML+=`<div class="sec-div">Bracket (${brkt.length})</div>`;gHTML+=brkt.map(g=>`<div class="list-item"><span><strong>${g.winner}</strong> def. ${g.loser} <span class="badge badge-brk">${g.type==='OTW'?'Bracket OT':'Bracket'}</span></span><button class="btn sm danger" onclick="removeGame(${g.id})">Remove</button></div>`).join('');}
+  return `
+    <div class="grid" style="margin-top:1rem;">
+      <div class="card">
+        <h2>Teams in ${d.name}</h2>
+        ${teamHTML}
+        <div class="row" style="margin-top:12px;">
+          <select id="ats-${d.id}">${avail.map(t=>`<option>${t}</option>`).join('')}${!avail.length?'<option disabled>All teams assigned</option>':''}</select>
+          <button class="btn pri" onclick="addTeamToDiv(${d.id})">+ Assign</button>
+        </div>
       </div>
-      <table class="krach-table">
-        <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>Pool W-L</th><th>Bracket W-L</th><th>KRACH</th><th>Strength</th></tr></thead>
-        <tbody>${sorted.map((t,i) => {
-          const s = stats[t];
-          const norm = (krach[t]/maxK*120).toFixed(0);
-          return `<tr>
-            <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
-            <td>${t}</td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
-            <td>${s.pool_w}-${s.pool_l}</td>
-            <td>${s.bracket_w}-${s.bracket_l}</td>
-            <td>${krach[t].toFixed(2)}</td>
-            <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    `;
-
-    document.getElementById('rtab-matrix').innerHTML = `
-      <p style="font-size:13px;color:#666;margin-bottom:1rem;">Expected win probability (%) for the <strong>row team</strong> vs the <strong>column team</strong>.</p>
-      <div class="matrix-wrap">${buildMatrix(sorted, krach)}</div>
-    `;
-
-    document.getElementById('rtab-tournaments').innerHTML = buildTournamentTab(stats);
-
-    window._lastRankings = { sorted, stats, krach, maxK, divisionName: activeDivisionName };
-    document.getElementById('ratings-empty-state').style.display = 'none';
-    document.getElementById('ratings-results').style.display = 'block';
-
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-ratings').classList.add('active');
-    document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
-  }
-
-  function buildTournamentTab(stats) {
-    if (!tournaments.length) return '<p style="color:#aaa;font-size:14px;">No tournaments yet.</p>';
-    return tournaments.map(t => {
-      const tGames = games.filter(g => g.tournament_id === t.id);
-      const pool = tGames.filter(g => g.phase === 'pool');
-      const bracket = tGames.filter(g => g.phase === 'bracket');
-      const teamsInTourn = [...new Set(tGames.flatMap(g => [g.winner, g.loser]))];
-      const tStats = {};
-      teamsInTourn.forEach(name => { tStats[name] = { w: 0, l: 0, t: 0 }; });
-      tGames.forEach(g => {
-        if (g.type === 'T') { tStats[g.winner].t++; tStats[g.loser].t++; }
-        else { tStats[g.winner].w++; tStats[g.loser].l++; }
-      });
-      const sortedTeams = teamsInTourn.sort((a,b) => tStats[b].w - tStats[a].w);
-
-      return `<div class="tourn-card">
-        <div class="tourn-card-header">
-          <h3>${t.name}</h3>
-          ${t.date ? `<span class="tourn-date">${t.date}</span>` : ''}
+      <div class="card">
+        <h2>Log a game</h2>
+        <label>Phase</label>
+        <select id="ph-${d.id}" onchange="togglePhase(${d.id})">
+          <option value="pool">Pool play</option>
+          <option value="bracket">Bracket</option>
+        </select>
+        <label>Winner</label>
+        <select id="win-${d.id}">${teams.map(t=>`<option>${t}</option>`).join('')}</select>
+        <label>Loser</label>
+        <select id="los-${d.id}">${teams.map((t,i)=>`<option${i===1?' selected':''}>${t}</option>`).join('')}</select>
+        <label>Result type</label>
+        <select id="rt-${d.id}">
+          <option value="W">Win (regulation)</option>
+          <option value="OTW">Win (OT/SO)</option>
+          <option value="T" id="tie-${d.id}">Tie</option>
+        </select>
+        <div style="margin-top:12px;">
+          <button class="btn pri" id="lb-${d.id}" onclick="logGame(${d.id})">+ Log pool game</button>
         </div>
-        <div class="tourn-stats">
-          <div class="tourn-stat"><div class="lbl">Teams</div><div class="val">${teamsInTourn.length}</div></div>
-          <div class="tourn-stat"><div class="lbl">Pool games</div><div class="val">${pool.length}</div></div>
-          <div class="tourn-stat"><div class="lbl">Bracket games</div><div class="val">${bracket.length}</div></div>
-        </div>
-        <div class="tourn-teams">
-          ${sortedTeams.map(name => {
-            const s = tStats[name];
-            const record = `${s.w}-${s.l}${s.t > 0 ? '-'+s.t : ''}`;
-            return `<div class="tourn-team-row">
-              <span class="tourn-team-name">${name}</span>
-              <span class="tourn-record">${record}</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
-    }).join('');
-  }
+        <div class="error" id="ge-${d.id}"></div>
+      </div>
+    </div>
+    <div class="card"><h2>Game log (${games.length})</h2>${gHTML||'<p class="empty">No games yet.</p>'}</div>
+    ${currentRole!=='viewer'?`<button class="btn danger" style="margin-bottom:1rem;" onclick="deleteDiv(${d.id},'${d.name.replace(/'/g,"\\'")}')">Delete division</button>`:''}`;
+}
 
-  function downloadCSV() {
-    const r = window._lastRankings;
-    if (!r) { alert('Calculate ratings first.'); return; }
-    const { sorted, stats, krach, maxK, divisionName } = r;
-    const rows = [['Rank','Team','GP','W','L','T','Pool W','Pool L','Bracket W','Bracket L','KRACH','Normalized']];
-    sorted.forEach((t,i) => {
-      const s = stats[t];
-      rows.push([i+1, t, s.gp, s.wins, s.losses, s.ties, s.pool_w, s.pool_l, s.bracket_w, s.bracket_l, krach[t].toFixed(2), (krach[t]/maxK*100).toFixed(1)]);
-    });
-    const csv = rows.map(r => r.map(v => '"' + v + '"').join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${divisionName.replace(/[^a-z0-9]/gi,'_')}_KRACH_Rankings.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+function togglePhase(divId) {
+  const phase=document.getElementById(`ph-${divId}`).value;
+  document.getElementById(`tie-${divId}`).disabled=phase==='bracket';
+  document.getElementById(`lb-${divId}`).textContent=phase==='bracket'?'+ Log bracket game':'+ Log pool game';
+  document.getElementById(`lb-${divId}`).className='btn '+(phase==='bracket'?'brk':'pri');
+}
 
-  function buildMatrix(sorted, krach) {
-    let h = '<table class="matrix-table"><thead><tr><th></th>';
-    sorted.forEach(t => h += `<th>${t}</th>`);
-    h += '</tr></thead><tbody>';
-    sorted.forEach(row => {
-      h += `<tr><th>${row}</th>`;
-      sorted.forEach(col => {
-        if (row === col) { h += '<td class="self">—</td>'; return; }
-        const pct = krach[row] / (krach[row] + krach[col]) * 100;
-        const cls = pct >= 60 ? 'cell-high' : pct < 40 ? 'cell-low' : '';
-        h += `<td class="${cls}">${pct.toFixed(1)}%</td>`;
-      });
-      h += '</tr>';
-    });
-    return h + '</tbody></table>';
-  }
+// ── Teams ──────────────────────────────────────────────────────────────────
+async function loadAllTeams() {
+  allTeams=await api('GET','/teams');
+  renderTeamsPage();
+}
 
-  function computeKRACH(teams, games) {
-    const n = teams.length;
-    const idx = {}; teams.forEach((t,i) => idx[t]=i);
-    const wins = Array(n).fill(0), opponents = Array.from({length:n},()=>({}));
-    games.forEach(g => {
-      if (!(g.winner in idx) || !(g.loser in idx)) return;
-      const wi = idx[g.winner], li = idx[g.loser];
-      const w = g.phase === 'bracket' ? BRACKET_WEIGHT : 1;
-      if (g.type === 'T') { wins[wi] += 0.5*w; wins[li] += 0.5*w; }
-      else { wins[wi] += w; }
-      opponents[wi][li] = (opponents[wi][li]||0)+w;
-      opponents[li][wi] = (opponents[li][wi]||0)+w;
-    });
-    let r = Array(n).fill(1.0);
-    for (let iter=0;iter<2000;iter++) {
-      const nr = Array(n).fill(0);
-      for (let i=0;i<n;i++) {
-        let d=0;
-        for (const [j,c] of Object.entries(opponents[i])) d += c/(r[i]+r[+j]);
-        nr[i] = d===0 ? 1.0 : wins[i]/d;
-      }
-      const norm = nr.reduce((a,b)=>a+b,0)/n;
-      r = nr.map(v=>v/(norm||1));
-    }
-    const res={};
-    teams.forEach((t,i) => res[t]=Math.max(r[i],0.001));
-    return res;
-  }
+function renderTeamsPage() {
+  const el=document.getElementById('all-teams-list');
+  el.innerHTML=!allTeams.length?'<p class="empty">No teams yet.</p>':allTeams.map(t=>`<div class="list-item"><span>${t}</span><button class="btn sm danger" onclick="deleteGlobalTeam('${t.replace(/'/g,"\\'")}')">Remove</button></div>`).join('');
+}
 
-  function showRatingsTab(name, btn) {
-    document.querySelectorAll('.ratings-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.ratings-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('rtab-'+name).classList.add('active');
-    btn.classList.add('active');
-  }
+async function addGlobalTeam() {
+  const inp=document.getElementById('new-global-team'), name=inp.value.trim();
+  document.getElementById('global-team-error').textContent='';
+  if (!name) return;
+  const res=await api('POST','/teams',{name});
+  if (res.error){document.getElementById('global-team-error').textContent=res.error;return;}
+  allTeams=res.teams; inp.value=''; renderTeamsPage(); flash();
+}
+document.getElementById('new-global-team').addEventListener('keydown',e=>{if(e.key==='Enter')addGlobalTeam();});
 
-  loadDivisions();
+async function deleteGlobalTeam(name) {
+  if (!confirm(`Remove "${name}" from roster?`)) return;
+  const res=await api('DELETE','/teams',{name}); allTeams=res.teams; renderTeamsPage(); flash();
+}
+
+async function addTeamToDiv(divId) {
+  const sel=document.getElementById(`ats-${divId}`), team_name=sel.value;
+  if (!team_name) return;
+  const res=await api('POST','/division-teams',{division_id:divId,team_name});
+  if (res.error){alert(res.error);return;}
+  await refreshTournament(); flash();
+}
+
+async function removeTeamFromDiv(divId,teamName) {
+  await api('DELETE','/division-teams',{division_id:divId,team_name:teamName});
+  await refreshTournament(); flash();
+}
+
+// ── Games ──────────────────────────────────────────────────────────────────
+async function logGame(divId) {
+  const winner=document.getElementById(`win-${divId}`).value;
+  const loser=document.getElementById(`los-${divId}`).value;
+  const type=document.getElementById(`rt-${divId}`).value;
+  const phase=document.getElementById(`ph-${divId}`).value;
+  const errEl=document.getElementById(`ge-${divId}`);
+  errEl.textContent='';
+  if (!winner||!loser){errEl.textContent='Select two teams.';return;}
+  if (winner===loser){errEl.textContent='Teams must be different.';return;}
+  const res=await api('POST','/games',{division_id:divId,winner,loser,type,phase});
+  if (res.error){errEl.textContent=res.error;return;}
+  await refreshTournament(); flash();
+}
+
+async function removeGame(id) {
+  await api('DELETE','/games',{id}); await refreshTournament(); flash();
+}
+
+// ── KRACH ──────────────────────────────────────────────────────────────────
+const BW=2, MG=8, CB=0.4;
+
+function computeKRACH(teams,games) {
+  const n=teams.length; if(!n) return {};
+  const idx={}; teams.forEach((t,i)=>idx[t]=i);
+  const wins=Array(n).fill(0), gp=Array(n).fill(0), opp=Array.from({length:n},()=>({}));
+  games.forEach(g=>{
+    if(!(g.winner in idx)||!(g.loser in idx)) return;
+    const wi=idx[g.winner],li=idx[g.loser],w=g.phase==='bracket'?BW:1;
+    if(g.type==='T'){wins[wi]+=.5*w;wins[li]+=.5*w;}else{wins[wi]+=w;}
+    gp[wi]++;gp[li]++;
+    opp[wi][li]=(opp[wi][li]||0)+w; opp[li][wi]=(opp[li][wi]||0)+w;
+  });
+  let r=Array(n).fill(1.0);
+  for(let it=0;it<2000;it++){
+    const nr=Array(n).fill(0);
+    for(let i=0;i<n;i++){let d=0;for(const[j,c]of Object.entries(opp[i]))d+=c/(r[i]+r[+j]);nr[i]=d===0?1:wins[i]/d;}
+    const avg=nr.reduce((a,b)=>a+b,0)/n; r=nr.map(v=>v/(avg||1));
+  }
+  const tw=wins.reduce((a,b)=>a+b,0),tg=gp.reduce((a,b)=>a+b,0),lwr=tg?tw/tg:.5;
+  r=r.map((v,i)=>{if(!gp[i])return v;const wr=wins[i]/gp[i],wrf=.5+(wr-lwr);return v*(0.7+0.3*Math.max(0.1,Math.min(1.9,wrf*2)));});
+  const a2=r.reduce((a,b)=>a+b,0)/n; r=r.map(v=>v/(a2||1));
+  const res={};
+  teams.forEach((t,i)=>{let rt=Math.max(r[i],.001);if(gp[i]<MG){const c=gp[i]/MG;rt=rt*(1-CB*(1-c))+1*CB*(1-c);}res[t]=rt;});
+  return res;
+}
+
+function krachTable(teams,games) {
+  if(!teams.length||!games.length) return '<p class="empty">Not enough data.</p>';
+  const k=computeKRACH(teams,games),maxK=Math.max(...Object.values(k));
+  const sorted=[...teams].sort((a,b)=>k[b]-k[a]);
+  const st={}; teams.forEach(t=>{st[t]={w:0,l:0,t:0,gp:0};});
+  games.forEach(g=>{st[g.winner].gp++;st[g.loser].gp++;if(g.type==='T'){st[g.winner].t++;st[g.loser].t++;}else{st[g.winner].w++;st[g.loser].l++;}});
+  const rc=i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  return `<table class="krach-table"><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Strength</th></tr></thead><tbody>${
+    sorted.map((t,i)=>{const s=st[t],n=(k[t]/maxK*120).toFixed(0);return`<tr><td><span class="rank ${rc(i)}">${i+1}</span></td><td>${t}</td><td>${s.gp}</td><td>${s.w}</td><td>${s.l}</td><td>${s.t}</td><td><strong>${(k[t]/maxK*1000).toFixed(1)}</strong></td><td><div class="bar-wrap"><div class="bar" style="width:${n}px;"></div><span style="font-size:12px;color:#888;">${(k[t]/maxK*100).toFixed(1)}</span></div></td></tr>`;}).join('')
+  }</tbody></table>`;
+}
+
+function matrixHTML(teams,games) {
+  if(teams.length<2||!games.length) return '';
+  const k=computeKRACH(teams,games),sorted=[...teams].sort((a,b)=>k[b]-k[a]);
+  let h='<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th></th>';
+  sorted.forEach(t=>h+=`<th>${t}</th>`);
+  h+='</tr></thead><tbody>';
+  sorted.forEach(row=>{h+=`<tr><th>${row}</th>`;sorted.forEach(col=>{if(row===col){h+='<td class="self">—</td>';return;}const p=k[row]/(k[row]+k[col])*100;h+=`<td class="${p>=60?'cell-hi':p<40?'cell-lo':''}">${p.toFixed(1)}%</td>`;});h+='</tr>';});
+  return h+'</tbody></table></div>';
+}
+
+function calculate() {
+  const divs=activeDivisions;
+  if(!divs.length){alert('No divisions in this tournament yet.');return;}
+  const totalGames=divs.reduce((a,d)=>a+d.games.length,0);
+  const totalTeams=new Set(divs.flatMap(d=>d.teams)).size;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="lbl">Divisions</div><div class="val">${divs.length}</div></div>
+    <div class="metric"><div class="lbl">Teams</div><div class="val">${totalTeams}</div></div>
+    <div class="metric"><div class="lbl">Total games</div><div class="val">${totalGames}</div></div>
+    <div class="metric"><div class="lbl">Tournament</div><div class="val" style="font-size:13px;">${activeTournName}</div></div>`;
+
+  document.getElementById('rtab-per-div').innerHTML=divs.map(d=>`
+    <div class="div-section">
+      <div class="div-section-hdr">
+        <h3>${d.name}</h3>${d.tier?`<span class="tier-badge tier-${d.tier}">Tier ${d.tier}</span>`:''}
+        <span style="font-size:13px;color:#888;margin-left:auto;">${d.games.length} games · ${d.teams.length} teams</span>
+      </div>
+      <div class="div-section-body">
+        <p class="info-note">Bracket games count 2×. Top team = 1000. Teams under 8 games adjusted.</p>
+        ${krachTable(d.teams,d.games)}
+        ${d.teams.length>=2?'<h3 style="font-size:14px;font-weight:600;margin-top:1.5rem;margin-bottom:.5rem;">Expected win % matrix</h3>'+matrixHTML(d.teams,d.games):''}
+      </div>
+    </div>`).join('');
+
+  const allT=[...new Set(divs.flatMap(d=>d.teams))], allG=divs.flatMap(d=>d.games);
+  document.getElementById('rtab-combined').innerHTML=`
+    <p class="info-note" style="margin-bottom:1rem;">All divisions in this tournament combined into one rating.</p>
+    ${krachTable(allT,allG)}
+    ${allT.length>=2?'<h3 style="font-size:14px;font-weight:600;margin-top:1.5rem;margin-bottom:.5rem;">Expected win % matrix</h3>'+matrixHTML(allT,allG):''}`;
+
+  document.getElementById('ratings-placeholder').style.display='none';
+  document.getElementById('ratings-results').style.display='block';
+
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-ratings').classList.add('active');
+  document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
+}
+
+function showRTab(name,btn) {
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.rpanel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('rtab-'+name).classList.add('active'); btn.classList.add('active');
+}
+
+// ── Users ──────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  if(currentRole!=='superadmin') return;
+  const users=await api('GET','/users');
+  document.getElementById('users-list').innerHTML=!users.length?'<p class="empty">No users yet.</p>':users.map(u=>`<div class="list-item"><span><strong>${u.username}</strong> <span style="font-size:12px;background:${u.role==='editor'?'#e0e7ff':'#f3f4f6'};color:${u.role==='editor'?'#3730a3':'#374151'};padding:1px 8px;border-radius:10px;">${u.role}</span></span><button class="btn sm danger" onclick="deleteUser(${u.id},'${u.username}')">Remove</button></div>`).join('');
+}
+
+async function addUser() {
+  const un=document.getElementById('new-user-un').value.trim(),pw=document.getElementById('new-user-pw').value,role=document.getElementById('new-user-role').value;
+  const e=document.getElementById('user-error'); e.textContent='';
+  if(!un||!pw){e.textContent='Username and password required.';return;}
+  const res=await api('POST','/users',{username:un,password:pw,role});
+  if(res.error){e.textContent=res.error;return;}
+  document.getElementById('new-user-un').value=''; document.getElementById('new-user-pw').value='';
+  await loadUsers(); flash();
+}
+
+async function deleteUser(id,username) {
+  if(!confirm(`Remove user "${username}"?`)) return;
+  await api('DELETE','/users',{id}); await loadUsers(); flash();
+}
+
+init();
 </script>
 </body>
 </html>

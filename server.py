@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 """
-KRACH Hockey Ratings - Render Web Server with PostgreSQL + Tournaments
+KRACH Hockey Ratings
+Hierarchy: Year -> Tournament -> Division -> Teams & Games
 """
 
 import json
 import os
 import secrets
+import hashlib
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL   = os.environ.get("DATABASE_URL")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
 
-sessions = {}
+sessions = {}  # token -> role
 
+
+# ── DB ────────────────────────────────────────────────────────────────────────
 
 def get_conn():
     url = DATABASE_URL
@@ -29,122 +33,126 @@ def init_db():
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS divisions (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT UNIQUE NOT NULL,
-                    tier INTEGER DEFAULT NULL
-                );
-            """)
-            cur.execute("""
-                ALTER TABLE divisions ADD COLUMN IF NOT EXISTS tier INTEGER DEFAULT NULL;
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS teams (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
-                    UNIQUE(name, division_id)
+                CREATE TABLE IF NOT EXISTS years (
+                    id   SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
                 );
             """)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS tournaments (
-                    id SERIAL PRIMARY KEY,
-                    division_id INTEGER REFERENCES divisions(id) ON DELETE CASCADE,
-                    name TEXT NOT NULL,
-                    date TEXT,
-                    cross_tier BOOLEAN NOT NULL DEFAULT FALSE,
-                    tier_a INTEGER DEFAULT NULL,
-                    tier_b INTEGER DEFAULT NULL
+                    id      SERIAL PRIMARY KEY,
+                    year_id INTEGER NOT NULL REFERENCES years(id) ON DELETE CASCADE,
+                    name    TEXT NOT NULL,
+                    date    TEXT,
+                    UNIQUE(year_id, name)
                 );
             """)
-            cur.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS cross_tier BOOLEAN NOT NULL DEFAULT FALSE;")
-            cur.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS tier_a INTEGER DEFAULT NULL;")
-            cur.execute("ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS tier_b INTEGER DEFAULT NULL;")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS divisions (
+                    id            SERIAL PRIMARY KEY,
+                    tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+                    name          TEXT NOT NULL,
+                    tier          INTEGER DEFAULT NULL,
+                    UNIQUE(tournament_id, name)
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS teams (
+                    id   SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS division_teams (
+                    division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
+                    team_name   TEXT NOT NULL REFERENCES teams(name) ON DELETE CASCADE,
+                    PRIMARY KEY (division_id, team_name)
+                );
+            """)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS games (
-                    id SERIAL PRIMARY KEY,
+                    id          SERIAL PRIMARY KEY,
                     division_id INTEGER NOT NULL REFERENCES divisions(id) ON DELETE CASCADE,
-                    tournament_id INTEGER REFERENCES tournaments(id) ON DELETE SET NULL,
-                    winner TEXT NOT NULL,
-                    loser TEXT NOT NULL,
-                    type TEXT NOT NULL DEFAULT 'W',
-                    phase TEXT NOT NULL DEFAULT 'pool',
-                    winner_division_id INTEGER REFERENCES divisions(id) ON DELETE SET NULL,
-                    loser_division_id INTEGER REFERENCES divisions(id) ON DELETE SET NULL,
-                    cross_tier BOOLEAN NOT NULL DEFAULT FALSE
+                    winner      TEXT NOT NULL,
+                    loser       TEXT NOT NULL,
+                    type        TEXT NOT NULL DEFAULT 'W',
+                    phase       TEXT NOT NULL DEFAULT 'pool'
                 );
             """)
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS winner_division_id INTEGER REFERENCES divisions(id) ON DELETE SET NULL;")
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS loser_division_id INTEGER REFERENCES divisions(id) ON DELETE SET NULL;")
-            cur.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS cross_tier BOOLEAN NOT NULL DEFAULT FALSE;")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            SERIAL PRIMARY KEY,
+                    username      TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role          TEXT NOT NULL DEFAULT 'editor'
+                );
+            """)
         conn.commit()
 
 
-def load_divisions():
+def hash_password(p):
+    return hashlib.sha256(p.encode()).hexdigest()
+
+
+# ── Loaders ──────────────────────────────────────────────────────────────────
+
+def load_years():
     with get_conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT id, name, tier FROM divisions ORDER BY tier NULLS LAST, name")
-            return [{"id": row["id"], "name": row["name"], "tier": row["tier"]} for row in cur.fetchall()]
+            cur.execute("SELECT id, name FROM years ORDER BY name DESC")
+            return [dict(r) for r in cur.fetchall()]
 
 
-def load_teams_for_tiers(tier_a, tier_b):
-    """Load all teams from divisions matching tier_a or tier_b."""
+def load_year(year_id):
     with get_conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("""
-                SELECT t.name, t.division_id, d.name as division_name, d.tier
-                FROM teams t
-                JOIN divisions d ON t.division_id = d.id
-                WHERE d.tier IN %s
-                ORDER BY d.tier, t.name
-            """, ((tier_a, tier_b),))
-            return [{"name": r["name"], "division_id": r["division_id"],
-                    "division_name": r["division_name"], "tier": r["tier"]} for r in cur.fetchall()]
+            cur.execute("SELECT id, name FROM tournaments WHERE year_id=%s ORDER BY date, id", (year_id,))
+            tournaments = []
+            for t in cur.fetchall():
+                cur2 = conn.cursor(cursor_factory=RealDictCursor)
+                cur2.execute("SELECT id, name, tier FROM divisions WHERE tournament_id=%s ORDER BY tier NULLS LAST, name", (t["id"],))
+                divs = []
+                for d in cur2.fetchall():
+                    cur3 = conn.cursor(cursor_factory=RealDictCursor)
+                    cur3.execute("SELECT team_name FROM division_teams WHERE division_id=%s ORDER BY team_name", (d["id"],))
+                    teams = [r["team_name"] for r in cur3.fetchall()]
+                    cur3.execute("""
+                        SELECT id, winner, loser, type, phase
+                        FROM games WHERE division_id=%s ORDER BY id
+                    """, (d["id"],))
+                    games = [dict(r) for r in cur3.fetchall()]
+                    divs.append({"id": d["id"], "name": d["name"], "tier": d["tier"],
+                                 "teams": teams, "games": games})
+                tournaments.append({"id": t["id"], "name": t["name"], "date": t.get("date"),
+                                    "divisions": divs})
+            return tournaments
 
 
-def load_division_data(division_id):
+def load_all_teams():
     with get_conn() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT name FROM teams WHERE division_id = %s ORDER BY id", (division_id,))
-            teams = [row["name"] for row in cur.fetchall()]
-            cur.execute("""
-                SELECT id, name, date, cross_tier, tier_a, tier_b
-                FROM tournaments
-                WHERE division_id = %s OR (cross_tier = TRUE AND (tier_a IN (
-                    SELECT tier FROM divisions WHERE id = %s
-                ) OR tier_b IN (
-                    SELECT tier FROM divisions WHERE id = %s
-                )))
-                ORDER BY date, id
-            """, (division_id, division_id, division_id))
-            tournaments = [{"id": r["id"], "name": r["name"], "date": r["date"],
-                           "cross_tier": r["cross_tier"], "tier_a": r["tier_a"], "tier_b": r["tier_b"]} for r in cur.fetchall()]
-            cur.execute("""
-                SELECT g.id, g.tournament_id, g.winner, g.loser, g.type, g.phase,
-                       g.cross_tier, g.winner_division_id, g.loser_division_id,
-                       t.name as tournament_name
-                FROM games g
-                LEFT JOIN tournaments t ON g.tournament_id = t.id
-                WHERE g.division_id = %s
-                   OR g.winner_division_id = %s
-                   OR g.loser_division_id = %s
-                ORDER BY g.id
-            """, (division_id, division_id, division_id))
-            games = [{
-                "id": r["id"], "tournament_id": r["tournament_id"],
-                "tournament_name": r["tournament_name"],
-                "winner": r["winner"], "loser": r["loser"],
-                "type": r["type"], "phase": r["phase"],
-                "cross_tier": r["cross_tier"],
-                "winner_division_id": r["winner_division_id"],
-                "loser_division_id": r["loser_division_id"]
-            } for r in cur.fetchall()]
-    return {"teams": teams, "tournaments": tournaments, "games": games}
+            cur.execute("SELECT name FROM teams ORDER BY name")
+            return [r["name"] for r in cur.fetchall()]
 
+
+def load_users():
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT id, username, role FROM users ORDER BY id")
+            return [dict(r) for r in cur.fetchall()]
+
+
+def get_user(username):
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM users WHERE username=%s", (username,))
+            return cur.fetchone()
+
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
 
 def get_session_token(headers):
-    cookie = headers.get("Cookie", "")
-    for part in cookie.split(";"):
+    for part in headers.get("Cookie", "").split(";"):
         part = part.strip()
         if part.startswith("session="):
             return part[len("session="):]
@@ -152,13 +160,28 @@ def get_session_token(headers):
 
 
 def is_authenticated(headers):
-    token = get_session_token(headers)
-    return token is not None and token in sessions
+    t = get_session_token(headers)
+    return t and t in sessions
 
+
+def get_role(headers):
+    t = get_session_token(headers)
+    return sessions.get(t) if t else None
+
+
+def is_superadmin(headers):
+    return get_role(headers) == "superadmin"
+
+
+def can_edit(headers):
+    return get_role(headers) in ("superadmin", "editor")
+
+
+# ── Handler ───────────────────────────────────────────────────────────────────
 
 class KRACHHandler(BaseHTTPRequestHandler):
 
-    def log_message(self, format, *args):
+    def log_message(self, fmt, *args):
         pass
 
     def send_json(self, data, status=200, extra_headers=None):
@@ -173,18 +196,18 @@ class KRACHHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def send_file(self, path, content_type):
+    def send_file(self, path, ct):
         with open(path, "rb") as f:
             body = f.read()
         self.send_response(200)
-        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Type", ct)
         self.send_header("Content-Length", len(body))
         self.end_headers()
         self.wfile.write(body)
 
-    def redirect(self, location):
+    def redirect(self, loc):
         self.send_response(302)
-        self.send_header("Location", location)
+        self.send_header("Location", loc)
         self.end_headers()
 
     def require_auth(self):
@@ -192,6 +215,16 @@ class KRACHHandler(BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return False
         return True
+
+    def require_edit(self):
+        if not self.require_auth():
+            return False
+        if not can_edit(self.headers):
+            self.send_json({"error": "Permission denied"}, 403)
+            return False
+        return True
+
+    # ── GET ──────────────────────────────────────────────────────────────────
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -202,248 +235,279 @@ class KRACHHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        path = parsed.path
+        path   = parsed.path
         params = parse_qs(parsed.query)
 
+        # Public
         if path == "/standings":
-            self.send_file("standings.html", "text/html")
-            return
+            self.send_file("standings.html", "text/html"); return
         if path == "/login":
-            self.send_file("login.html", "text/html")
-            return
-        if path == "/api/divisions":
-            self.send_json(load_divisions())
-            return
-        if path == "/api/data":
-            div_id = params.get("division_id", [None])[0]
-            if not div_id:
-                self.send_json({"error": "division_id required"}, 400)
-                return
-            self.send_json(load_division_data(int(div_id)))
-            return
+            self.send_file("login.html", "text/html"); return
+        if path == "/manifest.json":
+            self.send_file("manifest.json", "application/manifest+json"); return
+        if path == "/standings-manifest.json":
+            self.send_file("standings-manifest.json", "application/manifest+json"); return
+        if path == "/icon-192.png":
+            self.send_file("icon-192.png", "image/png"); return
+        if path == "/icon-512.png":
+            self.send_file("icon-512.png", "image/png"); return
+
+        # Public API
+        if path == "/api/years":
+            self.send_json(load_years()); return
+        if path == "/api/year":
+            yid = params.get("year_id", [None])[0]
+            if not yid:
+                self.send_json({"error": "year_id required"}, 400); return
+            self.send_json(load_year(int(yid))); return
+        if path == "/api/teams":
+            self.send_json(load_all_teams()); return
+
+        # Auth required
         if path == "/" or path == "/index.html":
             if not is_authenticated(self.headers):
-                self.redirect("/login")
-                return
-            self.send_file("index.html", "text/html")
-            return
-        if path == "/api/cross-tier-teams":
-            tier_a = params.get("tier_a", [None])[0]
-            tier_b = params.get("tier_b", [None])[0]
-            if not tier_a or not tier_b:
-                self.send_json({"error": "tier_a and tier_b required"}, 400)
-                return
-            self.send_json(load_teams_for_tiers(int(tier_a), int(tier_b)))
-            return
-        if path == "/api/auth/check":
-            self.send_json({"authenticated": is_authenticated(self.headers)})
-            return
+                self.redirect("/login"); return
+            self.send_file("index.html", "text/html"); return
+        if path == "/api/me":
+            self.send_json({"role": get_role(self.headers) or "none"}); return
+        if path == "/api/users":
+            if not is_superadmin(self.headers):
+                self.send_json({"error": "Unauthorized"}, 401); return
+            self.send_json(load_users()); return
 
-        self.send_response(404)
-        self.end_headers()
+        self.send_response(404); self.end_headers()
+
+    # ── POST ─────────────────────────────────────────────────────────────────
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        path = parsed.path
+        path   = parsed.path
         length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length)) if length else {}
+        body   = json.loads(self.rfile.read(length)) if length else {}
 
+        # Login
         if path == "/api/auth/login":
             username = body.get("username", "").strip()
             password = body.get("password", "")
+            role = None
             if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+                role = "superadmin"
+            else:
+                u = get_user(username)
+                if u and u["password_hash"] == hash_password(password):
+                    role = u["role"]
+            if role:
                 token = secrets.token_hex(32)
-                sessions[token] = True
-                self.send_json({"ok": True}, extra_headers={
+                sessions[token] = role
+                self.send_json({"ok": True, "role": role}, extra_headers={
                     "Set-Cookie": f"session={token}; Path=/; HttpOnly; SameSite=Strict"
                 })
             else:
                 self.send_json({"error": "Invalid username or password"}, 401)
             return
 
-        if not self.require_auth():
+        # Users (superadmin only)
+        if path == "/api/users":
+            if not is_superadmin(self.headers):
+                self.send_json({"error": "Unauthorized"}, 401); return
+            uname = body.get("username", "").strip()
+            pwd   = body.get("password", "")
+            role  = body.get("role", "editor")
+            if not uname or not pwd:
+                self.send_json({"error": "Username and password required"}, 400); return
+            if role not in ("editor", "viewer"):
+                self.send_json({"error": "Invalid role"}, 400); return
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO users (username, password_hash, role) VALUES (%s,%s,%s)",
+                                    (uname, hash_password(pwd), role))
+                    conn.commit()
+                self.send_json({"ok": True, "users": load_users()})
+            except psycopg2.errors.UniqueViolation:
+                self.send_json({"error": "Username already exists"}, 400)
             return
 
-        if path == "/api/divisions":
+        if not self.require_edit():
+            return
+
+        # Years
+        if path == "/api/years":
             name = body.get("name", "").strip()
             if not name:
-                self.send_json({"error": "Division name required"}, 400)
-                return
-            tier = body.get("tier", None)
+                self.send_json({"error": "Name required"}, 400); return
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO years (name) VALUES (%s) RETURNING id", (name,))
+                        new_id = cur.fetchone()[0]
+                    conn.commit()
+                self.send_json({"ok": True, "id": new_id, "name": name})
+            except psycopg2.errors.UniqueViolation:
+                self.send_json({"error": "Year already exists"}, 400)
+
+        # Tournaments
+        elif path == "/api/tournaments":
+            year_id = body.get("year_id")
+            name    = body.get("name", "").strip()
+            date    = body.get("date", None)
+            if not year_id or not name:
+                self.send_json({"error": "year_id and name required"}, 400); return
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO tournaments (year_id, name, date) VALUES (%s,%s,%s) RETURNING id",
+                                    (year_id, name, date))
+                        new_id = cur.fetchone()[0]
+                    conn.commit()
+                self.send_json({"ok": True, "id": new_id, "tournaments": load_year(year_id)})
+            except psycopg2.errors.UniqueViolation:
+                self.send_json({"error": "Tournament already exists in this year"}, 400)
+
+        # Divisions
+        elif path == "/api/divisions":
+            tourn_id = body.get("tournament_id")
+            name     = body.get("name", "").strip()
+            tier     = body.get("tier", None)
+            if not tourn_id or not name:
+                self.send_json({"error": "tournament_id and name required"}, 400); return
             if tier is not None:
                 try: tier = int(tier)
                 except: tier = None
             try:
                 with get_conn() as conn:
                     with conn.cursor() as cur:
-                        cur.execute("INSERT INTO divisions (name, tier) VALUES (%s, %s) RETURNING id", (name, tier))
+                        cur.execute("INSERT INTO divisions (tournament_id, name, tier) VALUES (%s,%s,%s) RETURNING id",
+                                    (tourn_id, name, tier))
                         new_id = cur.fetchone()[0]
                     conn.commit()
-                self.send_json({"ok": True, "id": new_id, "name": name, "tier": tier})
+                self.send_json({"ok": True, "id": new_id})
             except psycopg2.errors.UniqueViolation:
-                self.send_json({"error": "Division already exists"}, 400)
+                self.send_json({"error": "Division already exists in this tournament"}, 400)
 
+        # Teams (global)
         elif path == "/api/teams":
             name = body.get("name", "").strip()
-            div_id = body.get("division_id")
-            if not name or not div_id:
-                self.send_json({"error": "Name and division_id required"}, 400)
-                return
-            try:
-                with get_conn() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("INSERT INTO teams (name, division_id) VALUES (%s, %s)", (name, div_id))
-                    conn.commit()
-                self.send_json({"ok": True, **load_division_data(div_id)})
-            except psycopg2.errors.UniqueViolation:
-                self.send_json({"error": "Team already exists in this division"}, 400)
-
-        elif path == "/api/tournaments":
-            div_id = body.get("division_id")
-            name = body.get("name", "").strip()
-            date = body.get("date", None)
-            cross_tier = bool(body.get("cross_tier", False))
-            tier_a = body.get("tier_a", None)
-            tier_b = body.get("tier_b", None)
             if not name:
-                self.send_json({"error": "name required"}, 400)
-                return
-            if cross_tier and (not tier_a or not tier_b):
-                self.send_json({"error": "tier_a and tier_b required for cross-tier tournaments"}, 400)
-                return
-            if not cross_tier and not div_id:
-                self.send_json({"error": "division_id required"}, 400)
-                return
+                self.send_json({"error": "Name required"}, 400); return
             try:
                 with get_conn() as conn:
                     with conn.cursor() as cur:
-                        cur.execute(
-                            "INSERT INTO tournaments (division_id, name, date, cross_tier, tier_a, tier_b) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-                            (div_id, name, date, cross_tier, tier_a, tier_b)
-                        )
-                        new_id = cur.fetchone()[0]
+                        cur.execute("INSERT INTO teams (name) VALUES (%s)", (name,))
                     conn.commit()
-                self.send_json({"ok": True, "id": new_id, **load_division_data(div_id)})
+                self.send_json({"ok": True, "teams": load_all_teams()})
             except psycopg2.errors.UniqueViolation:
-                self.send_json({"error": "Tournament already exists"}, 400)
+                self.send_json({"error": "Team already exists"}, 400)
 
+        # Assign team to division
+        elif path == "/api/division-teams":
+            div_id    = body.get("division_id")
+            team_name = body.get("team_name", "").strip()
+            if not div_id or not team_name:
+                self.send_json({"error": "division_id and team_name required"}, 400); return
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO division_teams (division_id, team_name) VALUES (%s,%s)",
+                                    (div_id, team_name))
+                    conn.commit()
+                self.send_json({"ok": True})
+            except psycopg2.errors.UniqueViolation:
+                self.send_json({"error": "Team already in this division"}, 400)
+
+        # Games
         elif path == "/api/games":
             div_id = body.get("division_id")
-            tournament_id = body.get("tournament_id")
             winner = body.get("winner")
-            loser = body.get("loser")
-            result_type = body.get("type", "W")
-            phase = body.get("phase", "pool")
-            cross_tier = bool(body.get("cross_tier", False))
-            winner_division_id = body.get("winner_division_id", None)
-            loser_division_id = body.get("loser_division_id", None)
-            if not winner or not loser or winner == loser:
-                self.send_json({"error": "Invalid game data"}, 400)
-                return
-            if not cross_tier and not div_id:
-                self.send_json({"error": "division_id required"}, 400)
-                return
-            # For cross-tier games, use winner_division_id as primary division_id
-            primary_div = div_id if not cross_tier else (winner_division_id or div_id)
+            loser  = body.get("loser")
+            rtype  = body.get("type", "W")
+            phase  = body.get("phase", "pool")
+            if not div_id or not winner or not loser or winner == loser:
+                self.send_json({"error": "Invalid game data"}, 400); return
             with get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        "INSERT INTO games (division_id, tournament_id, winner, loser, type, phase, cross_tier, winner_division_id, loser_division_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                        (primary_div, tournament_id, winner, loser, result_type, phase, cross_tier, winner_division_id, loser_division_id)
-                    )
-                conn.commit()
-            self.send_json({"ok": True, **load_division_data(primary_div)})
-
-        elif path == "/api/divisions/tier":
-            div_id = body.get("id")
-            tier = body.get("tier", None)
-            if tier is not None:
-                try: tier = int(tier)
-                except: tier = None
-            with get_conn() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("UPDATE divisions SET tier = %s WHERE id = %s", (tier, div_id))
+                    cur.execute("INSERT INTO games (division_id, winner, loser, type, phase) VALUES (%s,%s,%s,%s,%s)",
+                                (div_id, winner, loser, rtype, phase))
                 conn.commit()
             self.send_json({"ok": True})
 
         else:
-            self.send_response(404)
-            self.end_headers()
+            self.send_response(404); self.end_headers()
+
+    # ── DELETE ───────────────────────────────────────────────────────────────
 
     def do_DELETE(self):
         parsed = urlparse(self.path)
-        path = parsed.path
+        path   = parsed.path
         length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length)) if length else {}
+        body   = json.loads(self.rfile.read(length)) if length else {}
 
         if path == "/api/auth/logout":
-            token = get_session_token(self.headers)
-            if token in sessions:
-                del sessions[token]
+            t = get_session_token(self.headers)
+            if t in sessions: del sessions[t]
             self.send_json({"ok": True}, extra_headers={
                 "Set-Cookie": "session=; Path=/; HttpOnly; Max-Age=0"
-            })
-            return
+            }); return
 
-        if not self.require_auth():
-            return
-
-        if path == "/api/divisions":
-            div_id = body.get("id")
-            if not div_id:
-                self.send_json({"error": "id required"}, 400)
-                return
+        if path == "/api/users":
+            if not is_superadmin(self.headers):
+                self.send_json({"error": "Unauthorized"}, 401); return
+            uid = body.get("id")
             with get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM divisions WHERE id = %s", (div_id,))
+                    cur.execute("DELETE FROM users WHERE id=%s", (uid,))
+                conn.commit()
+            self.send_json({"ok": True, "users": load_users()}); return
+
+        if not self.require_edit():
+            return
+
+        if path == "/api/years":
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM years WHERE id=%s", (body.get("id"),))
                 conn.commit()
             self.send_json({"ok": True})
 
         elif path == "/api/tournaments":
-            t_id = body.get("id")
-            div_id = body.get("division_id")
             with get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM tournaments WHERE id = %s", (t_id,))
+                    cur.execute("DELETE FROM tournaments WHERE id=%s", (body.get("id"),))
                 conn.commit()
-            self.send_json({"ok": True, **load_division_data(div_id)})
+            self.send_json({"ok": True})
+
+        elif path == "/api/divisions":
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM divisions WHERE id=%s", (body.get("id"),))
+                conn.commit()
+            self.send_json({"ok": True})
 
         elif path == "/api/teams":
             name = body.get("name")
-            div_id = body.get("division_id")
             with get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM games WHERE division_id = %s AND (winner = %s OR loser = %s)", (div_id, name, name))
-                    cur.execute("DELETE FROM teams WHERE name = %s AND division_id = %s", (name, div_id))
+                    cur.execute("DELETE FROM teams WHERE name=%s", (name,))
+                conn.commit()
+            self.send_json({"ok": True, "teams": load_all_teams()})
+
+        elif path == "/api/division-teams":
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM division_teams WHERE division_id=%s AND team_name=%s",
+                                (body.get("division_id"), body.get("team_name")))
                 conn.commit()
             self.send_json({"ok": True})
 
         elif path == "/api/games":
-            game_id = body.get("id")
-            div_id = body.get("division_id")
-            if game_id is not None:
-                with get_conn() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("DELETE FROM games WHERE id = %s", (game_id,))
-                    conn.commit()
-            self.send_json({"ok": True, **load_division_data(div_id)})
-
-        elif path == "/api/all":
-            div_id = body.get("division_id")
-            if div_id:
-                with get_conn() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("DELETE FROM games WHERE division_id = %s", (div_id,))
-                        cur.execute("DELETE FROM tournaments WHERE division_id = %s", (div_id,))
-                        cur.execute("DELETE FROM teams WHERE division_id = %s", (div_id,))
-                    conn.commit()
-                self.send_json({"ok": True})
-            else:
-                self.send_json({"error": "division_id required"}, 400)
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM games WHERE id=%s", (body.get("id"),))
+                conn.commit()
+            self.send_json({"ok": True})
 
         else:
-            self.send_response(404)
-            self.end_headers()
+            self.send_response(404); self.end_headers()
 
 
 if __name__ == "__main__":

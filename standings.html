@@ -1,81 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="manifest" href="/standings-manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Standings">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <title>League Standings</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f5; color: #111; min-height: 100vh; }
-
-    header { background: #1a1a2e; color: #fff; padding: 0 2rem; height: 56px; display: flex; align-items: center; gap: 12px; }
-    header h1 { font-size: 18px; font-weight: 600; }
-    .updated { font-size: 12px; color: #aaa; margin-left: auto; }
-
-    /* Division tabs */
-    .div-tabs-wrap { background: #fff; border-bottom: 1px solid #e4e4e7; padding: 0 2rem; overflow-x: auto; white-space: nowrap; }
-    .div-tab { display: inline-block; padding: 0 20px; height: 44px; line-height: 44px; font-size: 14px; font-weight: 500; cursor: pointer; color: #666; border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color 0.15s; }
-    .div-tab:hover { color: #1a1a2e; }
-    .div-tab.active { color: #1a1a2e; border-bottom-color: #6366f1; }
-
-    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
-    .div-panel { display: none; }
-    .div-panel.active { display: block; }
-
-    /* View tabs (rankings / matrix) */
-    .view-tabs { display: flex; border-bottom: 1px solid #e4e4e7; margin-bottom: 0; }
-    .view-tab { padding: 10px 18px; font-size: 14px; cursor: pointer; border: none; background: none; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-    .view-tab.active { color: #1a1a2e; border-bottom-color: #6366f1; font-weight: 500; }
-    .view-panel { display: none; }
-    .view-panel.active { display: block; }
-
-    .card { background: #fff; border-radius: 12px; border: 1px solid #e4e4e7; overflow: hidden; }
-    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid #e4e4e7; }
-    .card-header h2 { font-size: 16px; font-weight: 600; }
-    .card-body { padding: 0 0 0.5rem; }
-
-    /* Summary metrics */
-    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
-    @media (max-width: 500px) { .metrics { grid-template-columns: 1fr 1fr; } }
-    .metric { background: #fff; border-radius: 10px; border: 1px solid #e4e4e7; padding: 1rem 1.25rem; }
-    .metric .lbl { font-size: 12px; color: #666; margin-bottom: 4px; }
-    .metric .val { font-size: 22px; font-weight: 600; }
-
-    /* Rankings table */
-    .krach-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .krach-table th { text-align: left; padding: 10px 16px; border-bottom: 1px solid #e4e4e7; font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: #f9f9fb; }
-    .krach-table td { padding: 11px 16px; border-bottom: 1px solid #f4f4f5; }
-    .krach-table tr:last-child td { border-bottom: none; }
-    .krach-table tr:hover td { background: #fafafa; }
-    .rank { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: #f4f4f5; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
-    .rank.gold { background: #fef3c7; color: #92400e; }
-    .rank.silver { background: #f1f5f9; color: #475569; }
-    .rank.bronze { background: #fff7ed; color: #9a3412; }
-    .bar-wrap { display: flex; align-items: center; gap: 8px; }
-    .bar { height: 8px; background: #6366f1; border-radius: 4px; min-width: 2px; }
-
-    /* Matrix */
-    .matrix-note { font-size: 13px; color: #666; padding: 1rem 1.5rem 0.5rem; }
-    .matrix-scroll { overflow-x: auto; padding: 0 1.5rem 1.5rem; }
-    .matrix-table { border-collapse: collapse; font-size: 13px; }
-    .matrix-table th, .matrix-table td { border: 1px solid #e4e4e7; padding: 7px 14px; text-align: center; white-space: nowrap; }
-    .matrix-table th { background: #f9f9fb; font-weight: 600; font-size: 12px; }
-    .matrix-table td.self { background: #f4f4f5; color: #aaa; }
-    .cell-high { background: rgba(34,197,94,0.12); color: #166534; font-weight: 500; }
-    .cell-low { background: rgba(239,68,68,0.08); color: #991b1b; }
-
-    .info-note { font-size: 12px; color: #7c3aed; background: #ede9fe; padding: 6px 16px; border-radius: 0; display: flex; align-items: center; gap: 6px; }
-
-    .tier-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
-    .tier-1 { background: #fef3c7; color: #92400e; }
-    .tier-2 { background: #e0e7ff; color: #3730a3; }
-    .tier-3 { background: #dcfce7; color: #166534; }
-    .tier-4 { background: #f3f4f6; color: #374151; }
-    .tier-5 { background: #fce7f3; color: #9d174d; }
-    .loading { text-align: center; padding: 3rem; color: #aaa; font-size: 14px; }
-    .empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; }
-    .empty-state p { font-size: 15px; color: #555; font-weight: 500; margin-bottom: 6px; }
-    .empty-state small { font-size: 13px; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f4f4f5;color:#111;min-height:100vh;}
+    header{background:#1a1a2e;color:#fff;padding:0 2rem;height:56px;display:flex;align-items:center;gap:12px;}
+    header h1{font-size:18px;font-weight:600;}
+    .updated{font-size:12px;color:#aaa;margin-left:auto;}
+    .year-tabs-wrap{background:#fff;border-bottom:1px solid #e4e4e7;padding:0 2rem;overflow-x:auto;white-space:nowrap;}
+    .year-tab{display:inline-block;padding:0 20px;height:44px;line-height:44px;font-size:14px;font-weight:500;cursor:pointer;color:#666;border-bottom:3px solid transparent;margin-bottom:-1px;}
+    .year-tab:hover{color:#1a1a2e;}
+    .year-tab.active{color:#1a1a2e;border-bottom-color:#6366f1;}
+    .container{max-width:980px;margin:0 auto;padding:2rem 1.5rem;}
+    .year-panel{display:none;}
+    .year-panel.active{display:block;}
+    .tourn-tabs-wrap{display:flex;gap:0;border-bottom:1px solid #e4e4e7;margin-bottom:1.5rem;overflow-x:auto;flex-wrap:wrap;}
+    .tourn-tab{padding:8px 18px;font-size:14px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+    .tourn-tab:hover{color:#1a1a2e;}
+    .tourn-tab.active{color:#1a1a2e;border-bottom-color:#6366f1;font-weight:500;}
+    .tourn-panel{display:none;}
+    .tourn-panel.active{display:block;}
+    .div-section{background:#fff;border-radius:12px;border:1px solid #e4e4e7;margin-bottom:1.5rem;overflow:hidden;}
+    .div-section-hdr{padding:1rem 1.5rem;border-bottom:1px solid #e4e4e7;display:flex;align-items:center;gap:8px;background:#f9f9fb;}
+    .div-section-hdr h2{font-size:16px;font-weight:600;}
+    .view-tabs{display:flex;border-bottom:1px solid #e4e4e7;}
+    .view-tab{padding:8px 18px;font-size:13px;cursor:pointer;border:none;background:none;color:#666;border-bottom:2px solid transparent;margin-bottom:-1px;}
+    .view-tab.active{color:#1a1a2e;border-bottom-color:#6366f1;font-weight:500;}
+    .view-panel{display:none;}
+    .view-panel.active{display:block;}
+    .sort-bar{display:flex;gap:6px;padding:.75rem 1.5rem 0;align-items:center;}
+    .sort-btn{height:26px;padding:0 10px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:transparent;color:#666;}
+    .sort-btn.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e;}
+    .krach-table{width:100%;border-collapse:collapse;font-size:14px;}
+    .krach-table th{text-align:left;padding:8px 16px;border-bottom:1px solid #e4e4e7;font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:#f9f9fb;}
+    .krach-table td{padding:10px 16px;border-bottom:1px solid #f4f4f5;}
+    .krach-table tr:last-child td{border-bottom:none;}
+    .krach-table tr:hover td{background:#fafafa;}
+    .rank{display:inline-flex;width:26px;height:26px;border-radius:50%;background:#f4f4f5;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+    .rank.gold{background:#fef3c7;color:#92400e;}
+    .rank.silver{background:#f1f5f9;color:#475569;}
+    .rank.bronze{background:#fff7ed;color:#9a3412;}
+    .bar-wrap{display:flex;align-items:center;gap:8px;}
+    .bar{height:8px;background:#6366f1;border-radius:4px;min-width:2px;}
+    .matrix-note{font-size:13px;color:#666;padding:1rem 1.5rem .5rem;}
+    .matrix-scroll{overflow-x:auto;padding:0 1.5rem 1.5rem;}
+    .matrix-table{border-collapse:collapse;font-size:13px;}
+    .matrix-table th,.matrix-table td{border:1px solid #e4e4e7;padding:7px 12px;text-align:center;white-space:nowrap;}
+    .matrix-table th{background:#f9f9fb;font-weight:600;font-size:12px;}
+    .matrix-table td.self{background:#f4f4f5;color:#aaa;}
+    .cell-hi{background:rgba(34,197,94,.12);color:#166534;font-weight:500;}
+    .cell-lo{background:rgba(239,68,68,.08);color:#991b1b;}
+    .tier-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;}
+    .tier-1{background:#fef3c7;color:#92400e;}
+    .tier-2{background:#e0e7ff;color:#3730a3;}
+    .tier-3{background:#dcfce7;color:#166534;}
+    .tier-4{background:#f3f4f6;color:#374151;}
+    .tier-5{background:#fce7f3;color:#9d174d;}
+    .info-note{font-size:12px;color:#7c3aed;background:#ede9fe;padding:6px 16px;}
+    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem;}
+    @media(max-width:500px){.metrics{grid-template-columns:1fr 1fr;}}
+    .metric{background:#fff;border-radius:10px;border:1px solid #e4e4e7;padding:1rem 1.25rem;}
+    .metric .lbl{font-size:12px;color:#666;margin-bottom:4px;}
+    .metric .val{font-size:22px;font-weight:600;}
+    .loading{text-align:center;padding:3rem;color:#aaa;font-size:14px;}
+    .empty-state{text-align:center;padding:3rem 1rem;color:#aaa;}
+    .empty-state p{font-size:15px;color:#555;font-weight:500;margin-bottom:6px;}
+    .combined-note{background:#fff;border-radius:12px;border:1px solid #e4e4e7;padding:1.5rem;margin-bottom:1.5rem;}
+    .combined-note h2{font-size:16px;font-weight:600;margin-bottom:1rem;}
   </style>
 </head>
 <body>
@@ -86,252 +85,211 @@
   <span class="updated" id="updated-time"></span>
 </header>
 
-<div class="div-tabs-wrap" id="div-tabs">
-  <div class="loading" style="padding:10px 0;">Loading divisions...</div>
-</div>
-
-<div class="container" id="panels">
-  <div class="loading">Loading standings...</div>
-</div>
+<div class="year-tabs-wrap" id="year-tabs"><div class="loading" style="padding:10px 0;">Loading...</div></div>
+<div class="container" id="panels"><div class="loading">Loading standings...</div></div>
 
 <script>
-  const API = window.location.origin + '/api';
-  async function load() {
-    const divisions = await fetch(`${API}/divisions`).then(r => r.json());
+const API = window.location.origin + '/api';
+const BW=2, MG=8, CB=0.4;
 
-    if (!divisions.length) {
-      document.getElementById('div-tabs').innerHTML = '';
-      document.getElementById('panels').innerHTML = '<div class="empty-state"><p>No divisions yet</p><small>Check back soon.</small></div>';
-      return;
-    }
-
-    // Fetch all division data in parallel
-    const allData = await Promise.all(
-      divisions.map(d => fetch(`${API}/data?division_id=${d.id}`).then(r => r.json()).then(data => ({ ...d, ...data })))
-    );
-
-    // Build division tabs
-    // Sort by tier then name
-    allData.sort((a, b) => {
-      if (a.tier && b.tier) return a.tier - b.tier;
-      if (a.tier) return -1;
-      if (b.tier) return 1;
-      return a.name.localeCompare(b.name);
-    });
-    document.getElementById('div-tabs').innerHTML = allData.map((d, i) =>
-      `<span class="div-tab ${i===0?'active':''}" onclick="showDiv('div-${d.id}', this)">${d.name}${d.tier ? `<span class="tier-badge tier-${d.tier}">Tier ${d.tier}</span>` : ''}</span>`
-    ).join('');
-
-    // Build panels
-    document.getElementById('panels').innerHTML = allData.map((d, i) =>
-      `<div class="div-panel ${i===0?'active':''}" id="div-${d.id}">${buildPanel(d)}</div>`
-    ).join('');
-
-    document.getElementById('updated-time').textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+async function load() {
+  const years = await fetch(`${API}/years`).then(r=>r.json());
+  if (!years.length) {
+    document.getElementById('year-tabs').innerHTML='';
+    document.getElementById('panels').innerHTML='<div class="empty-state"><p>No seasons yet</p><small>Check back soon.</small></div>';
+    return;
   }
+  // Load all year data in parallel
+  const allData = await Promise.all(years.map(y=>
+    fetch(`${API}/year?year_id=${y.id}`).then(r=>r.json()).then(ts=>({...y, tournaments:ts}))
+  ));
 
-  function buildPanel(d) {
-    const { teams, games } = d;
-    if (!teams.length || !games.length) {
-      return `<div class="empty-state"><p>No standings yet</p><small>Games haven't been logged for this division.</small></div>`;
-    }
+  document.getElementById('year-tabs').innerHTML = allData.map((y,i)=>
+    `<span class="year-tab ${i===0?'active':''}" onclick="showYear('yp-${y.id}',this)">${y.name}</span>`
+  ).join('');
 
-    const stats = {};
-    teams.forEach(t => { stats[t] = { wins: 0, losses: 0, ties: 0, gp: 0 }; });
-    games.forEach(g => {
-      stats[g.winner].gp++; stats[g.loser].gp++;
-      if (g.type === 'T') { stats[g.winner].ties++; stats[g.loser].ties++; }
-      else { stats[g.winner].wins++; stats[g.loser].losses++; }
-    });
+  document.getElementById('panels').innerHTML = allData.map((y,i)=>
+    `<div class="year-panel ${i===0?'active':''}" id="yp-${y.id}">${buildYearPanel(y)}</div>`
+  ).join('');
 
-    const krach = computeKRACH(teams, games);
-    const elo = computeElo(teams, games);
-    const sorted = [...teams].sort((a,b) => krach[b] - krach[a]);
-    const maxK = Math.max(...Object.values(krach));
-    const id = d.id;
+  document.getElementById('updated-time').textContent = 'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
 
-    const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+function buildYearPanel(y) {
+  if (!y.tournaments.length)
+    return '<div class="empty-state"><p>No tournaments yet</p><small>Check back soon.</small></div>';
 
-    const rankingsHTML = `
-      <div style="display:flex;gap:6px;padding:0.75rem 1.5rem 0;align-items:center;">
+  const tabs = y.tournaments.map((t,i)=>
+    `<button class="tourn-tab ${i===0?'active':''}" onclick="showTourn('tp-${t.id}','ty-${y.id}',this)">${t.name}${t.date?` <span style="font-size:11px;color:#aaa;">${t.date}</span>`:''}</button>`
+  ).join('');
+
+  const panels = y.tournaments.map((t,i)=>
+    `<div class="tourn-panel ${i===0?'active':''}" id="tp-${t.id}">${buildTournPanel(t)}</div>`
+  ).join('');
+
+  return `<div class="tourn-tabs-wrap" id="ty-${y.id}">${tabs}</div>${panels}`;
+}
+
+function buildTournPanel(t) {
+  if (!t.divisions || !t.divisions.length)
+    return '<div class="empty-state"><p>No divisions yet</p></div>';
+
+  const totalGames = t.divisions.reduce((a,d)=>a+d.games.length,0);
+  const totalTeams = new Set(t.divisions.flatMap(d=>d.teams)).size;
+
+  const metrics = `<div class="metrics">
+    <div class="metric"><div class="lbl">Divisions</div><div class="val">${t.divisions.length}</div></div>
+    <div class="metric"><div class="lbl">Teams</div><div class="val">${totalTeams}</div></div>
+    <div class="metric"><div class="lbl">Games played</div><div class="val">${totalGames}</div></div>
+  </div>`;
+
+  // Per-division sections
+  const divSections = t.divisions.map(d=>{
+    const id = `${t.id}-${d.id}`;
+    return `<div class="div-section">
+      <div class="div-section-hdr">
+        <h2>${d.name}</h2>${d.tier?`<span class="tier-badge tier-${d.tier}">Tier ${d.tier}</span>`:''}
+        <span style="font-size:13px;color:#888;margin-left:auto;">${d.games.length} games</span>
+      </div>
+      <div class="sort-bar">
         <span style="font-size:12px;color:#888;margin-right:4px;">Sort by:</span>
-        <button class="sort-btn" data-sort="krach" onclick="sortPanel(${id}, 'krach')" style="height:28px;padding:0 12px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:#1a1a2e;color:#fff;">KRACH</button>
-        <button class="sort-btn" data-sort="elo" onclick="sortPanel(${id}, 'elo')" style="height:28px;padding:0 12px;border:1px solid #d4d4d8;border-radius:6px;font-size:12px;cursor:pointer;background:transparent;color:#666;">Elo</button>
+        <button class="sort-btn active" data-sort="krach" onclick="sortTable('${id}','krach',this)">KRACH</button>
+        <button class="sort-btn" data-sort="elo" onclick="sortTable('${id}','elo',this)">Elo</button>
       </div>
-      <div class="info-note" style="margin-top:0.5rem;">Bracket games count as 2×. Top team = 1000. Teams under 8 games are adjusted. Cross-tier games count toward each team's division rating.</div>
-      <div class="card-body">
-        <table class="krach-table">
-          <thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Elo</th><th>Strength</th></tr></thead>
-          <tbody>${sorted.map((t,i) => {
-            const s = stats[t];
-            const norm = (krach[t]/maxK*120).toFixed(0);
-            return `<tr data-krach="${(krach[t]/maxK*1000).toFixed(1)}" data-elo="${Math.round(elo[t])}">
-              <td><span class="rank ${rankClass(i)}">${i+1}</span></td>
-              <td><strong>${t}</strong></td><td>${s.gp}</td><td>${s.wins}</td><td>${s.losses}</td><td>${s.ties}</td>
-              <td><strong>${(krach[t]/maxK*1000).toFixed(1)}</strong></td>
-              <td>${Math.round(elo[t])}</td>
-              <td><div class="bar-wrap"><div class="bar" style="width:${norm}px;"></div><span style="font-size:12px;color:#888;">${(krach[t]/maxK*100).toFixed(1)}</span></div></td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
+      <div class="view-tabs" style="padding:0 1.5rem;">
+        <button class="view-tab active" onclick="showView('rk-${id}','mx-${id}',this)">Rankings</button>
+        <button class="view-tab" onclick="showView('mx-${id}','rk-${id}',this)">Win % matrix</button>
       </div>
-    `;
-
-    const matrixHTML = `
-      <div class="matrix-note">Expected win probability (%) for the <strong>row team</strong> against the <strong>column team</strong>.</div>
-      <div class="matrix-scroll">${buildMatrix(sorted, krach)}</div>
-    `;
-
-    return `
-      <div class="metrics">
-        <div class="metric"><div class="lbl">Teams</div><div class="val">${teams.length}</div></div>
-        <div class="metric"><div class="lbl">Tournaments</div><div class="val">${d.tournaments ? d.tournaments.length : 0}</div></div>
-        <div class="metric"><div class="lbl">Games played</div><div class="val">${games.length}</div></div>
+      <div class="view-panel active" id="rk-${id}">
+        <div class="info-note">Bracket games count 2×. Top team = 1000. Teams under 8 games adjusted.</div>
+        ${buildTable(d.teams,d.games,id)}
       </div>
-      <div class="card">
-        <div class="card-header">
-          <h2>${d.name} Standings${d.tier ? `<span class="tier-badge tier-${d.tier}">Tier ${d.tier}</span>` : ''}</h2>
-        </div>
-        <div class="view-tabs" style="padding:0 1.5rem;">
-          <button class="view-tab active" onclick="showView('rankings-${id}','matrix-${id}',this)">Rankings</button>
-          <button class="view-tab" onclick="showView('matrix-${id}','rankings-${id}',this)">Expected win % matrix</button>
-        </div>
-        <div class="view-panel active" id="rankings-${id}">${rankingsHTML}</div>
-        <div class="view-panel" id="matrix-${id}">${matrixHTML}</div>
+      <div class="view-panel" id="mx-${id}">
+        <div class="matrix-note">Expected win probability (%) — row team vs column team.</div>
+        <div class="matrix-scroll">${buildMatrix(d.teams,d.games)}</div>
       </div>
-    `;
+    </div>`;
+  }).join('');
+
+  // Combined section
+  const allT=[...new Set(t.divisions.flatMap(d=>d.teams))], allG=t.divisions.flatMap(d=>d.games);
+  const combinedId=`${t.id}-combined`;
+  const combined = allT.length>=2&&allG.length?`
+    <div class="combined-note">
+      <h2>Season-long combined ratings</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:1rem;">All divisions in ${t.name} combined into one rating.</p>
+      ${buildTable(allT,allG,combinedId)}
+    </div>`:'';
+
+  return metrics + divSections + combined;
+}
+
+function buildTable(teams,games,id) {
+  if (!teams.length||!games.length) return '<p style="padding:1rem 1.5rem;color:#aaa;font-size:13px;">Not enough data.</p>';
+  const k=computeKRACH(teams,games), elo=computeElo(teams,games);
+  const maxK=Math.max(...Object.values(k));
+  const sorted=[...teams].sort((a,b)=>k[b]-k[a]);
+  const st={}; teams.forEach(t=>{st[t]={w:0,l:0,t:0,gp:0};});
+  games.forEach(g=>{st[g.winner].gp++;st[g.loser].gp++;if(g.type==='T'){st[g.winner].t++;st[g.loser].t++;}else{st[g.winner].w++;st[g.loser].l++;}});
+  const rc=i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  return `<table class="krach-table" id="tbl-${id}"><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>KRACH</th><th>Elo</th><th>Strength</th></tr></thead><tbody>${
+    sorted.map((t,i)=>{
+      const s=st[t],n=(k[t]/maxK*120).toFixed(0);
+      return `<tr data-krach="${(k[t]/maxK*1000).toFixed(1)}" data-elo="${Math.round(elo[t])}">
+        <td><span class="rank ${rc(i)}">${i+1}</span></td>
+        <td><strong>${t}</strong></td><td>${s.gp}</td><td>${s.w}</td><td>${s.l}</td><td>${s.t}</td>
+        <td><strong>${(k[t]/maxK*1000).toFixed(1)}</strong></td>
+        <td>${Math.round(elo[t])}</td>
+        <td><div class="bar-wrap"><div class="bar" style="width:${n}px;"></div><span style="font-size:12px;color:#888;">${(k[t]/maxK*100).toFixed(1)}</span></div></td>
+      </tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+
+function buildMatrix(teams,games) {
+  if(teams.length<2||!games.length) return '<p style="color:#aaa;font-size:13px;padding:1rem 0;">Not enough data.</p>';
+  const k=computeKRACH(teams,games),sorted=[...teams].sort((a,b)=>k[b]-k[a]);
+  let h='<table class="matrix-table" style="margin-top:.5rem;"><thead><tr><th></th>';
+  sorted.forEach(t=>h+=`<th>${t}</th>`);
+  h+='</tr></thead><tbody>';
+  sorted.forEach(row=>{h+=`<tr><th>${row}</th>`;sorted.forEach(col=>{if(row===col){h+='<td class="self">—</td>';return;}const p=k[row]/(k[row]+k[col])*100;h+=`<td class="${p>=60?'cell-hi':p<40?'cell-lo':''}">${p.toFixed(1)}%</td>`;});h+='</tr>';});
+  return h+'</tbody></table>';
+}
+
+function sortTable(id,by,btn) {
+  const tbl=document.getElementById(`tbl-${id}`);
+  if(!tbl) return;
+  btn.closest('.sort-bar').querySelectorAll('.sort-btn').forEach(b=>{b.classList.remove('active');});
+  btn.classList.add('active');
+  const tbody=tbl.querySelector('tbody'), rows=[...tbody.querySelectorAll('tr')];
+  rows.sort((a,b)=>parseFloat(b.dataset[by]||0)-parseFloat(a.dataset[by]||0));
+  rows.forEach((row,i)=>{
+    const rk=row.querySelector('.rank');
+    if(rk){rk.textContent=i+1;rk.className='rank '+(i===0?'gold':i===1?'silver':i===2?'bronze':'');}
+    tbody.appendChild(row);
+  });
+}
+
+function showYear(id,btn) {
+  document.querySelectorAll('.year-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.year-tab').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(id); if(el) el.classList.add('active');
+  btn.classList.add('active');
+}
+
+function showTourn(showId,tabsId,btn) {
+  const wrap=document.getElementById(tabsId);
+  wrap.querySelectorAll('.tourn-panel').forEach(p=>p.classList.remove('active'));
+  wrap.querySelectorAll('.tourn-tab').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(showId); if(el) el.classList.add('active');
+  btn.classList.add('active');
+}
+
+function showView(showId,hideId,btn) {
+  document.getElementById(showId).classList.add('active');
+  document.getElementById(hideId).classList.remove('active');
+  btn.closest('.view-tabs').querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function computeKRACH(teams,games) {
+  const n=teams.length; if(!n) return {};
+  const idx={}; teams.forEach((t,i)=>idx[t]=i);
+  const wins=Array(n).fill(0),gp=Array(n).fill(0),opp=Array.from({length:n},()=>({}));
+  games.forEach(g=>{
+    if(!(g.winner in idx)||!(g.loser in idx)) return;
+    const wi=idx[g.winner],li=idx[g.loser],w=g.phase==='bracket'?BW:1;
+    if(g.type==='T'){wins[wi]+=.5*w;wins[li]+=.5*w;}else{wins[wi]+=w;}
+    gp[wi]++;gp[li]++;
+    opp[wi][li]=(opp[wi][li]||0)+w;opp[li][wi]=(opp[li][wi]||0)+w;
+  });
+  let r=Array(n).fill(1.0);
+  for(let it=0;it<2000;it++){
+    const nr=Array(n).fill(0);
+    for(let i=0;i<n;i++){let d=0;for(const[j,c]of Object.entries(opp[i]))d+=c/(r[i]+r[+j]);nr[i]=d===0?1:wins[i]/d;}
+    const avg=nr.reduce((a,b)=>a+b,0)/n;r=nr.map(v=>v/(avg||1));
   }
+  const tw=wins.reduce((a,b)=>a+b,0),tg=gp.reduce((a,b)=>a+b,0),lwr=tg?tw/tg:.5;
+  r=r.map((v,i)=>{if(!gp[i])return v;const wr=wins[i]/gp[i],wrf=.5+(wr-lwr);return v*(0.7+0.3*Math.max(0.1,Math.min(1.9,wrf*2)));});
+  const a2=r.reduce((a,b)=>a+b,0)/n;r=r.map(v=>v/(a2||1));
+  const res={};
+  teams.forEach((t,i)=>{let rt=Math.max(r[i],.001);if(gp[i]<MG){const c=gp[i]/MG;rt=rt*(1-CB*(1-c))+1*CB*(1-c);}res[t]=rt;});
+  return res;
+}
 
-  function buildMatrix(sorted, krach) {
-    let h = '<table class="matrix-table" style="margin-top:1rem;"><thead><tr><th></th>';
-    sorted.forEach(t => h += `<th>${t}</th>`);
-    h += '</tr></thead><tbody>';
-    sorted.forEach(row => {
-      h += `<tr><th>${row}</th>`;
-      sorted.forEach(col => {
-        if (row === col) { h += '<td class="self">—</td>'; return; }
-        const pct = krach[row] / (krach[row] + krach[col]) * 100;
-        const cls = pct >= 60 ? 'cell-high' : pct < 40 ? 'cell-low' : '';
-        h += `<td class="${cls}">${pct.toFixed(1)}%</td>`;
-      });
-      h += '</tr>';
-    });
-    return h + '</tbody></table>';
-  }
+function computeElo(teams,games) {
+  const rat={}; teams.forEach(t=>{rat[t]=1500;});
+  games.forEach(g=>{
+    if(!(g.winner in rat)||!(g.loser in rat)) return;
+    const K=g.phase==='bracket'?64:32;
+    const eW=1/(1+Math.pow(10,(rat[g.loser]-rat[g.winner])/400));
+    if(g.type==='T'){rat[g.winner]+=K*(.5-eW);rat[g.loser]+=K*(.5-(1-eW));}
+    else{rat[g.winner]+=K*(1-eW);rat[g.loser]+=K*(0-(1-eW));}
+  });
+  return rat;
+}
 
-  function showDiv(id, btn) {
-    document.querySelectorAll('.div-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.div-tab').forEach(b => b.classList.remove('active'));
-    const el = document.getElementById(id);
-    if (el) el.classList.add('active');
-    btn.classList.add('active');
-  }
-
-  const sortState = {};
-  function sortPanel(divId, by) {
-    sortState[divId] = by;
-    const panel = document.getElementById('div-' + divId);
-    if (!panel) return;
-    panel.querySelectorAll('.sort-btn').forEach(b => {
-      b.style.background = b.dataset.sort === by ? '#1a1a2e' : 'transparent';
-      b.style.color = b.dataset.sort === by ? '#fff' : '#666';
-    });
-    const tbody = panel.querySelector('.krach-table tbody');
-    if (!tbody) return;
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    rows.sort((a, b) => parseFloat(b.dataset[by]||0) - parseFloat(a.dataset[by]||0));
-    rows.forEach((row, i) => {
-      const rankEl = row.querySelector('.rank');
-      if (rankEl) {
-        rankEl.textContent = i + 1;
-        rankEl.className = 'rank ' + (i===0?'gold':i===1?'silver':i===2?'bronze':'');
-      }
-      tbody.appendChild(row);
-    });
-  }
-
-  function showView(showId, hideId, btn) {
-    document.getElementById(showId).classList.add('active');
-    document.getElementById(hideId).classList.remove('active');
-    const tabs = btn.closest('.view-tabs').querySelectorAll('.view-tab');
-    tabs.forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-  }
-
-  const BRACKET_WEIGHT = 2;
-  const MIN_GAMES = 8;
-  const CONFIDENCE_BLEND = 0.4;
-
-  function computeElo(teams, games) {
-    const ratings = {};
-    teams.forEach(t => { ratings[t] = 1500; });
-    games.forEach(g => {
-      if (!(g.winner in ratings) || !(g.loser in ratings)) return;
-      const K = g.phase === 'bracket' ? 64 : 32;
-      const eW = 1 / (1 + Math.pow(10, (ratings[g.loser] - ratings[g.winner]) / 400));
-      const eL = 1 - eW;
-      if (g.type === 'T') {
-        ratings[g.winner] += K * (0.5 - eW);
-        ratings[g.loser]  += K * (0.5 - eL);
-      } else {
-        ratings[g.winner] += K * (1 - eW);
-        ratings[g.loser]  += K * (0 - eL);
-      }
-    });
-    return ratings;
-  }
-
-  function computeKRACH(teams, games) {
-    const n = teams.length;
-    const idx = {}; teams.forEach((t,i) => idx[t]=i);
-    const wins = Array(n).fill(0), gamesPlayed = Array(n).fill(0);
-    const opponents = Array.from({length:n},()=>({}));
-    games.forEach(g => {
-      if (!(g.winner in idx) || !(g.loser in idx)) return;
-      const wi = idx[g.winner], li = idx[g.loser];
-      const w = g.phase === 'bracket' ? BRACKET_WEIGHT : 1;
-      if (g.type === 'T') { wins[wi] += 0.5*w; wins[li] += 0.5*w; }
-      else { wins[wi] += w; }
-      gamesPlayed[wi]++; gamesPlayed[li]++;
-      opponents[wi][li] = (opponents[wi][li]||0)+w;
-      opponents[li][wi] = (opponents[li][wi]||0)+w;
-    });
-    let r = Array(n).fill(1.0);
-    for (let iter=0;iter<2000;iter++) {
-      const nr = Array(n).fill(0);
-      for (let i=0;i<n;i++) {
-        let d=0;
-        for (const [j,c] of Object.entries(opponents[i])) d += c/(r[i]+r[+j]);
-        nr[i] = d===0 ? 1.0 : wins[i]/d;
-      }
-      const norm = nr.reduce((a,b)=>a+b,0)/n;
-      r = nr.map(v=>v/(norm||1));
-    }
-    const totalWins = wins.reduce((a,b)=>a+b,0);
-    const totalGP = gamesPlayed.reduce((a,b)=>a+b,0);
-    const leagueWR = totalGP > 0 ? totalWins / totalGP : 0.5;
-    r = r.map((v, i) => {
-      const gp = gamesPlayed[i];
-      if (gp === 0) return v;
-      const wr = wins[i] / gp;
-      const wrf = 0.5 + (wr - leagueWR);
-      return v * (0.7 + 0.3 * Math.max(0.1, Math.min(1.9, wrf * 2)));
-    });
-    const avg = r.reduce((a,b)=>a+b,0)/n;
-    r = r.map(v => v/(avg||1));
-    const res={};
-    teams.forEach((t,i) => {
-      let rating = Math.max(r[i], 0.001);
-      if (gamesPlayed[i] < MIN_GAMES) {
-        const conf = gamesPlayed[i] / MIN_GAMES;
-        rating = rating * (1 - CONFIDENCE_BLEND * (1 - conf)) + 1.0 * CONFIDENCE_BLEND * (1 - conf);
-      }
-      res[t] = rating;
-    });
-    return res;
-  }
-
-  load();
+load();
 </script>
 </body>
 </html>
